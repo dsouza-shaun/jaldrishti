@@ -1,0 +1,156 @@
+// JalDrishti - Prisma schema
+// SQLite-based store. Geometries are stored as GeoJSON strings;
+// spatial operations are performed in the application layer using Turf.js
+// (this mirrors the role that PostGIS would play in the full system).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Project inputs -----------------------------------------------------------
+
+model Project {
+  id                    String         @id @default(cuid())
+  projectName           String
+  latitude              Float
+  longitude             Float
+  itLoad                Float          // MW
+  pue                   Float          // Power Usage Effectiveness
+  wue                   Float          // Water Usage Effectiveness (L/kWh)
+  coolingType           String         // air-cooled-chiller | water-cooled-chiller | adiabatic | hybrid | direct-liquid
+  builtUpArea           Float?         // m^2
+  landTenure            String         // midc | private-freehold | other
+  proposedWaterSource   String         // groundwater | surface | municipal | tanker | mixed
+  alternativeWaterSource String?
+  notes                 String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  analyses              Analysis[]
+  scenarios             Scenario[]
+}
+
+// ---- Analysis runs (one per /analyze call) ------------------------------------
+
+model Analysis {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  resultJson    String   // full structured JSON: water demand, regulatory, ecology, classification, evidence
+  createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// ---- What-if scenarios --------------------------------------------------------
+
+model Scenario {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label         String
+  itLoad        Float
+  pue           Float
+  wue           Float
+  coolingType   String
+  proposedWaterSource String
+  resultJson    String
+  createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// ---- Groundwater blocks (CGWB periodic data) ----------------------------------
+
+model GroundwaterBlock {
+  id            String   @id @default(cuid())
+  state         String
+  district      String
+  blockName     String
+  // CGWB stage of groundwater development (%)
+  stage         Float?
+  // Category: Safe | Semi-Critical | Critical | Over-Exploited | Saline
+  category      String
+  // Pre-monsoon & post-monsoon depth to water table (mbgl)
+  preMonsoon    Float?
+  postMonsoon   Float?
+  // Annual replenishable recharge (ham)
+  recharge      Float?
+  // Annual extraction (ham)
+  extraction    Float?
+  // Number of assessment units
+  units         Int?
+  tds           Float?   // mg/L average
+  source        String   // "CGWB Ground Water Year Book"
+  sourceDate    String
+  fetchedAt     DateTime @default(now())
+  evidenceStatus String  // VERIFIED | PROXY | UNKNOWN
+
+  @@index([state, district, blockName])
+}
+
+// ---- Rainfall stations (IMD-style) --------------------------------------------
+
+model RainfallStation {
+  id            String   @id @default(cuid())
+  stationName   String
+  state         String
+  district      String
+  latitude      Float
+  longitude     Float
+  // mm
+  annualNormal  Float
+  monsoonNormal Float     // Jun-Sep
+  postMonsoon   Float?    // Oct-Dec
+  winterRain    Float?    // Jan-Feb
+  summerRain    Float?    // Mar-May
+  // 10-year time-series (JSON: [{year, annual}])
+  timeseries    String?
+  source        String    // "IMD Grided Rainfall"
+  sourceDate    String
+  fetchedAt     DateTime @default(now())
+  evidenceStatus String
+
+  @@index([state, district])
+}
+
+// ---- Ecological GIS layers (polygons stored as GeoJSON strings) ---------------
+
+model EcologicalZone {
+  id            String   @id @default(cuid())
+  layer         String   // esz | forest | wetland | crz
+  name          String
+  category      String?  // e.g. national-park, sanctuary, creek, mangrove
+  state         String?
+  geometry      String   // GeoJSON Polygon/MultiPolygon as text
+  areaKm2       Float?
+  source        String
+  sourceDate    String
+  lastUpdated   DateTime @default(now())
+  evidenceStatus String
+
+  @@index([layer])
+}
+
+// ---- Regulatory rule set (auditable, separate from app code) ------------------
+
+model RegulatoryRule {
+  id            String   @id @default(cuid())
+  ruleCode      String   @unique
+  domain        String   // cgwa | ec | esz | forest | wetland | crz | spcb
+  title         String
+  description   String
+  // JSON-encoded rule body (conditions, thresholds, outcome)
+  ruleBody      String
+  source        String
+  sourceDate    String
+  evidenceStatus String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

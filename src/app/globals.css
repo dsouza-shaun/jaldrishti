@@ -1,0 +1,432 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============================================================
+   JalDrishti - Editorial Neo-Brutalist on Sky-Blue Field
+   Typography: Inter (body) + Plus Jakarta Sans (display)
+   ============================================================ */
+
+:root {
+  /* Sky blue field */
+  --sky:        #b8e6f6;
+  --sky-deep:   #7fcde9;
+  --sky-light:  #e8f6fc;
+
+  /* Brutalist palette */
+  --ink:        #0a0a0a;
+  --paper:      #fdfcf6;
+  --accent-red:     #ff3b3b;
+  --accent-yellow:  #ffe24d;
+  --accent-green:   #3ad17f;
+  --accent-orange:  #ff8c1a;
+  --accent-purple:  #8b5cf6;
+  --accent-pink:    #ff6ad5;
+  --accent-teal:    #14b8a6;
+
+  /* Status colors */
+  --status-feasible:      #3ad17f;
+  --status-conditional:   #ffe24d;
+  --status-insufficient:  #ff8c1a;
+  --status-constraint:    #ff3b3b;
+  --status-verified:      #3ad17f;
+  --status-proxy:         #ffe24d;
+  --status-unknown:       #b8b8b8;
+
+  --radius: 0px;
+  --background: var(--sky);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: #f0e9d6;
+  --secondary-foreground: var(--ink);
+  --muted: #e8e2cf;
+  --muted-foreground: #444;
+  --accent: var(--accent-yellow);
+  --accent-foreground: var(--ink);
+  --destructive: var(--accent-red);
+  --border: var(--ink);
+  --input: var(--paper);
+  --ring: var(--ink);
+  --chart-1: var(--accent-red);
+  --chart-2: var(--accent-yellow);
+  --chart-3: var(--accent-green);
+  --chart-4: var(--accent-orange);
+  --chart-5: var(--accent-purple);
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--paper);
+  --sidebar-accent: var(--accent-yellow);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--ink);
+  --sidebar-ring: var(--ink);
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: var(--paper);
+  --card: #1a1a1a;
+  --card-foreground: var(--paper);
+  --popover: #1a1a1a;
+  --popover-foreground: var(--paper);
+  --primary: var(--paper);
+  --primary-foreground: var(--ink);
+  --secondary: #2a2a2a;
+  --secondary-foreground: var(--paper);
+  --muted: #2a2a2a;
+  --muted-foreground: #aaa;
+  --accent: var(--accent-yellow);
+  --accent-foreground: var(--ink);
+  --destructive: var(--accent-red);
+  --border: var(--paper);
+  --input: #2a2a2a;
+  --ring: var(--paper);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    background-color: var(--sky);
+    color: var(--ink);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: 16px;       /* larger base */
+    line-height: 1.6;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ============================================================
+   Brutalist primitives
+   ============================================================ */
+
+@layer components {
+  .nb-card {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 0;
+    box-shadow: 6px 6px 0 0 var(--ink);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .nb-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 0 var(--ink);
+  }
+  .nb-card-flat {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 0;
+  }
+  .nb-btn {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 0 var(--ink);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.2rem;
+    font-size: 1rem;
+  }
+  .nb-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 var(--ink);
+  }
+  .nb-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 var(--ink);
+  }
+  .nb-btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .nb-btn-accent {
+    background: var(--accent-yellow);
+  }
+  .nb-btn-red {
+    background: var(--accent-red);
+    color: var(--paper);
+  }
+  .nb-btn-green {
+    background: var(--accent-green);
+  }
+  .nb-input {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 0;
+    padding: 0.7rem 0.9rem;
+    font-weight: 500;
+    font-size: 1rem;
+    width: 100%;
+    transition: box-shadow 0.1s, transform 0.1s;
+  }
+  .nb-input:focus {
+    outline: none;
+    box-shadow: 4px 4px 0 0 var(--ink);
+    transform: translate(-2px, -2px);
+  }
+  .nb-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.85rem;
+    margin-bottom: 0.35rem;
+    display: block;
+  }
+  .nb-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 2px solid var(--ink);
+    padding: 0.2rem 0.65rem;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 0;
+  }
+  .nb-divider {
+    border-top: 3px solid var(--ink);
+    margin: 1rem 0;
+  }
+  .nb-stripe {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--ink) 0,
+      var(--ink) 2px,
+      transparent 2px,
+      transparent 8px
+    );
+  }
+  .nb-shadow-hard {
+    box-shadow: 6px 6px 0 0 var(--ink);
+  }
+  .nb-shadow-hard-lg {
+    box-shadow: 10px 10px 0 0 var(--ink);
+  }
+}
+
+/* Marquee */
+@keyframes nb-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.nb-marquee {
+  animation: nb-marquee 38s linear infinite;
+}
+
+/* Custom scrollbar */
+.nb-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+.nb-scroll::-webkit-scrollbar-track { background: var(--paper); border-left: 2px solid var(--ink); }
+.nb-scroll::-webkit-scrollbar-thumb { background: var(--ink); border: 2px solid var(--paper); }
+.nb-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent-red); }
+
+/* MapLibre popup overrides */
+.maplibregl-popup-content {
+  border: 3px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 0 var(--ink) !important;
+  font-family: var(--font-inter), sans-serif !important;
+  font-weight: 600;
+  padding: 10px 14px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+.maplibregl-popup-tip { display: none !important; }
+.maplibregl-ctrl-attrib { font-size: 9px !important; }
+
+/* Toast - brutalist override */
+[data-radix-toast-viewport] {
+  bottom: 16px !important;
+  right: 16px !important;
+  top: auto !important;
+  max-width: 420px !important;
+}
+[data-radix-toast-root] {
+  border: 3px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 0 var(--ink) !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-inter), sans-serif !important;
+  padding: 14px 16px !important;
+}
+[data-radix-toast-root][data-variant="destructive"] {
+  background: var(--accent-red) !important;
+  color: var(--paper) !important;
+  border-color: var(--ink) !important;
+}
+[data-radix-toast-root] [data-radix-toast-title] {
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  font-family: var(--font-display), sans-serif !important;
+}
+[data-radix-toast-root] [data-radix-toast-description] {
+  font-size: 13px !important;
+  opacity: 0.9 !important;
+  margin-top: 4px !important;
+}
+[data-radix-toast-root] [data-radix-toast-action] button {
+  background: var(--accent-yellow) !important;
+  color: var(--ink) !important;
+  border: 2px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+  letter-spacing: 0.05em !important;
+  padding: 4px 10px !important;
+}
+[data-radix-toast-root] [data-radix-toast-close] {
+  border: 2px solid currentColor !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* Float-bob animation for hero blobs */
+@keyframes nb-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.nb-bob { animation: nb-bob 4s ease-in-out infinite; }
+
+/* Slow spin */
+@keyframes nb-spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.nb-spin-slow { animation: nb-spin-slow 22s linear infinite; }
+
+/* Reverse slow spin */
+@keyframes nb-spin-slow-rev {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+.nb-spin-slow-rev { animation: nb-spin-slow-rev 18s linear infinite; }
+
+/* Pulse-glow for status dots / active elements */
+@keyframes nb-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.6); }
+  50%      { box-shadow: 0 0 0 12px rgba(255, 59, 59, 0); }
+}
+.nb-pulse-glow { animation: nb-pulse-glow 2s ease-in-out infinite; }
+
+/* Gradient shift for hero accents */
+@keyframes nb-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.nb-gradient-shift {
+  background-size: 200% 200%;
+  animation: nb-gradient-shift 6s ease infinite;
+}
+
+/* Wiggle for icons on hover */
+@keyframes nb-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-8deg); }
+  75%      { transform: rotate(8deg); }
+}
+.nb-wiggle-hover:hover .nb-wiggle-target {
+  animation: nb-wiggle 0.5s ease-in-out;
+}
+
+/* Bounce-in for stat numbers */
+@keyframes nb-bounce-in {
+  0%   { opacity: 0; transform: scale(0.3) translateY(-20px); }
+  60%  { opacity: 1; transform: scale(1.1) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.nb-bounce-in { animation: nb-bounce-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Slide-in from left */
+@keyframes nb-slide-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.nb-slide-left { animation: nb-slide-left 0.5s ease-out both; }
+
+/* Slide-in from right */
+@keyframes nb-slide-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.nb-slide-right { animation: nb-slide-right 0.5s ease-out both; }
+
+/* Bar-grow for scenario comparison bars */
+@keyframes nb-bar-grow {
+  from { width: 0; }
+  to   { width: var(--nb-bar-target, 100%); }
+}
+
+/* Ticker scroll (vertical) */
+@keyframes nb-ticker-up {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-100%); }
+}
+
+/* Slow background drift - disabled, plain sky blue background */
+
+/* Pop-in for badges */
+@keyframes nb-pop-in {
+  0%   { opacity: 0; transform: scale(0); }
+  70%  { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.nb-pop-in { animation: nb-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
