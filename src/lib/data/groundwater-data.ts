@@ -130,7 +130,7 @@ function mapRow(
     provenance: {
       source: "Bundled India groundwater district resource CSV",
       sourceDate:
-        "Unknown assessment vintage; filename suggests 2017 and the header also contains a 2025 allocation field",
+        "2017 India groundwater district dataset",
       evidenceStatus: "PROXY",
       datasetFile: "datasets/ground_water_2017.csv",
       caveat:

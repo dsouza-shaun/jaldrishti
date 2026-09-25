@@ -177,10 +177,6 @@ export function EvidencePanel() {
     });
   }
 
-  const verified = rows.filter((r) => r.evidenceStatus === "VERIFIED").length;
-  const proxy = rows.filter((r) => r.evidenceStatus === "PROXY").length;
-  const unknown = rows.filter((r) => r.evidenceStatus === "UNKNOWN").length;
-
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -190,12 +186,7 @@ export function EvidencePanel() {
       <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4" />
-          <h3 className="text-sm font-extrabold uppercase tracking-tight">Evidence & Provenance</h3>
-        </div>
-        <div className="flex gap-1">
-          <span className="nb-badge" style={{ background: "var(--status-verified)" }}>{verified} VERIFIED</span>
-          <span className="nb-badge" style={{ background: "var(--status-proxy)" }}>{proxy} PROXY</span>
-          <span className="nb-badge" style={{ background: "var(--status-unknown)" }}>{unknown} UNKNOWN</span>
+          <h3 className="text-sm font-extrabold uppercase tracking-tight">Data sources</h3>
         </div>
       </div>
 
@@ -207,7 +198,6 @@ export function EvidencePanel() {
               <th className="text-left p-2">Value</th>
               <th className="text-left p-2">Source</th>
               <th className="text-left p-2">Date</th>
-              <th className="text-left p-2">Ev.</th>
             </tr>
           </thead>
           <tbody>
@@ -222,19 +212,6 @@ export function EvidencePanel() {
                 <td className="p-2 font-mono text-[10px]">{row.value}</td>
                 <td className="p-2 text-[10px]">{row.source}</td>
                 <td className="p-2 text-[10px] font-mono">{row.sourceDate}</td>
-                <td className="p-2">
-                  <span
-                    className="nb-badge"
-                    style={{
-                      background:
-                        row.evidenceStatus === "VERIFIED" ? "var(--status-verified)" :
-                        row.evidenceStatus === "PROXY" ? "var(--status-proxy)" :
-                        "var(--status-unknown)",
-                    }}
-                  >
-                    {row.evidenceStatus}
-                  </span>
-                </td>
               </tr>
             ))}
           </tbody>

@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { MapPin, Hash, Building2 } from "lucide-react";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { EvidenceBadge } from "./GroundwaterPanel";
 
 interface LocationResult {
   provider: string;
@@ -39,7 +38,6 @@ export function LocationPanel() {
             Resolved Location
           </h3>
         </div>
-        <EvidenceBadge status={location ? "PROXY" : "UNKNOWN"} />
       </div>
 
       {location ? (

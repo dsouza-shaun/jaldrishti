@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
 import { getOwnerId } from "@/lib/auth/owner";
 import {
   checkEdgeRateLimit,
@@ -146,26 +145,39 @@ Provider failures:
 ${(siteData.failures ?? []).map((failure) => `- ${failure.provider}: ${failure.message}`).join("\n") || "- none"}
 `;
 
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 900,
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "AI explanations are not configured. Add GROQ_API_KEY to the server environment." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    // This API runs only when a user requests an explanation. Keep the API
+    // key on the server; never return it to the browser or include it in logs.
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_completion_tokens: 900,
+      }),
+      signal: AbortSignal.timeout(30_000),
+      cache: "no-store",
     });
-
-    // SDK shape varies - try common paths
-    const completionAny = completion as unknown as {
-      choices?: Array<{ message?: { content?: string }; text?: string }>;
-      content?: string;
-    };
-    const text: string =
-      completionAny.choices?.[0]?.message?.content ??
-      completionAny.content ??
-      completionAny.choices?.[0]?.text ??
-      "";
+    if (!groqResponse.ok) {
+      console.error("[explanation] Groq request failed with status", groqResponse.status);
+      return NextResponse.json(
+        { error: "The explanation provider is temporarily unavailable." },
+        { status: 502, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const completion = await groqResponse.json();
+    const text: string = completion.choices?.[0]?.message?.content ?? "";
 
     return NextResponse.json(
       { explanation: text },

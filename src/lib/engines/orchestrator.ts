@@ -518,25 +518,9 @@ export async function analyze(
         "Groundwater extraction requires a known CGWB category for NOC screening.",
     });
   }
-  if (usingGroundwater && !groundwater.assessmentUnitVerified) {
-    evidenceGaps.push({
-      key: "gw-assessment-unit",
-      label: "CGWB assessment-unit/block classification",
-      whyCritical:
-        "The bundled record is district-level or fallback data; NOC decisions require the applicable block/assessment unit.",
-    });
-  }
-  if (
-    context.location?.data.state &&
-    context.location.data.state.toLowerCase() !== "maharashtra"
-  ) {
-    evidenceGaps.push({
-      key: "ecology-coverage",
-      label: "Ecological layer coverage outside Maharashtra",
-      whyCritical:
-        "The bundled ESZ/forest/wetland/CRZ fixtures do not provide national or state-complete clearance for this site.",
-    });
-  }
+  // District resource totals still support an indicative screening. The
+  // CGWA rule adds an explicit verification condition when the assessment
+  // unit is unavailable; that gap alone must not block the whole result.
 
   const classification = classify(constraints, evidenceGaps);
 

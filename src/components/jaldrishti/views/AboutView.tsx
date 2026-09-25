@@ -26,9 +26,7 @@ const DATASETS = [
 ];
 
 const EVIDENCE = [
-  { label: "Verified", desc: "Comes directly from a primary government source.", color: "var(--status-verified)" },
-  { label: "Proxy", desc: "Derived from a nearby station or related dataset.", color: "var(--status-proxy)" },
-  { label: "Unknown", desc: "No reliable data available — never invented.", color: "var(--status-unknown)" },
+  { label: "Data coverage", desc: "Live services and bundled datasets are used where available. Areas with limited data may need further review.", color: "var(--accent-yellow)" },
 ];
 
 export function AboutView() {
@@ -115,8 +113,7 @@ export function AboutView() {
       <section>
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-3">Datasets used</h2>
         <p className="text-base sm:text-lg text-black/70 mb-5 sm:mb-6 max-w-2xl">
-          Real Indian government datasets, periodically refreshed. No
-          fabricated values.
+          Government datasets provide local context, while live services add current weather and location details when available.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {DATASETS.map((d, i) => {

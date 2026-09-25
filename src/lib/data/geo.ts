@@ -3,11 +3,6 @@ export interface Coordinates {
   longitude: number;
 }
 
-/**
- * Normalizes a state/UT label without discarding meaningful words. Dataset
- * labels come from several vintages, so state aliases are explicit rather than
- * resolved with an unsafe fuzzy match.
- */
 const STATE_ALIASES: Readonly<Record<string, string>> = {
   orissa: "odisha",
   uttaranchal: "uttarakhand",

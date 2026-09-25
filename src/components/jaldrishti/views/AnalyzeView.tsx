@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { COOLING_TECH_WUE_BANDS, defaultWueForCooling } from "@/lib/engines/water-demand";
 import { useToast } from "@/hooks/use-toast";
+import { MapLocationPicker } from "@/components/jaldrishti/MapLocationPicker";
 import {
   Loader2, Rocket, RotateCcw, MapPin, Settings2, Droplets, Building2, ChevronRight, CheckCircle2,
 } from "lucide-react";
@@ -97,7 +98,7 @@ export function AnalyzeView() {
           Tell us about your project.
         </h1>
         <p className="text-base sm:text-lg text-black/70 max-w-2xl">
-          Fill in the project details and proposed site coordinates. JalDrishti
+          Fill in the project details and choose a proposed site on the map. JalDrishti
           will run a full screening and take you to the dashboard.
         </p>
       </motion.div>
@@ -117,7 +118,7 @@ export function AnalyzeView() {
           >
             <MapPin className="w-5 h-5 text-white" />
           </motion.div>
-          <h2 className="text-xl sm:text-2xl font-extrabold">Site & coordinates</h2>
+          <h2 className="text-xl sm:text-2xl font-extrabold">Choose your site</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
@@ -130,24 +131,9 @@ export function AnalyzeView() {
             />
           </Field>
 
-          <Field label="Latitude">
-            <input
-              type="number"
-              step="0.0001"
-              className="nb-input"
-              value={form.latitude}
-              onChange={(e) => setForm({ latitude: parseFloat(e.target.value) })}
-            />
-          </Field>
-          <Field label="Longitude">
-            <input
-              type="number"
-              step="0.0001"
-              className="nb-input"
-              value={form.longitude}
-              onChange={(e) => setForm({ longitude: parseFloat(e.target.value) })}
-            />
-          </Field>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <MapLocationPicker latitude={Number.isFinite(form.latitude) ? form.latitude : 19.0418} longitude={Number.isFinite(form.longitude) ? form.longitude : 73.0856} onChange={(latitude, longitude) => setForm({ latitude, longitude })} />
+          </div>
           <Field label="Quick site presets">
             <select
               className="nb-input"

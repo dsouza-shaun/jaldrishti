@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { SiteMap } from "@/components/jaldrishti/SiteMap";
 import { ClassificationCard } from "@/components/jaldrishti/ClassificationCard";
+import { LiveConditionsPanel } from "@/components/jaldrishti/LiveConditionsPanel";
 import { WaterDemandPanel } from "@/components/jaldrishti/WaterDemandPanel";
 import { LocationPanel } from "@/components/jaldrishti/LocationPanel";
 import { GroundwaterPanel } from "@/components/jaldrishti/GroundwaterPanel";
@@ -15,14 +16,14 @@ import { EvidencePanel } from "@/components/jaldrishti/EvidencePanel";
 import { AIExplanationPanel } from "@/components/jaldrishti/AIExplanationPanel";
 import { Search, ArrowRight } from "lucide-react";
 
-const PANELS = [
-  { Comp: LocationPanel, key: "location" },
-  { Comp: WaterDemandPanel, key: "water" },
-  { Comp: GroundwaterPanel, key: "gw" },
-  { Comp: RainfallPanel,    key: "rf" },
-  { Comp: RegulatoryPanel,  key: "reg" },
-  { Comp: PowerPanel,       key: "pow" },
-  { Comp: AIExplanationPanel, key: "ai" },
+const ANALYTICS = [
+  { Component: WaterDemandPanel, key: "water" },
+  { Component: GroundwaterPanel, key: "groundwater" },
+  { Component: RainfallPanel, key: "rainfall" },
+  { Component: RegulatoryPanel, key: "regulatory" },
+  { Component: PowerPanel, key: "power" },
+  { Component: LocationPanel, key: "location" },
+  { Component: AIExplanationPanel, key: "explanation" },
 ] as const;
 
 export function DashboardView() {
@@ -56,6 +57,9 @@ export function DashboardView() {
     );
   }
 
+  const dailyWater = analysis.waterDemand.waterKlPerDay;
+  const annualWater = analysis.waterDemand.waterMcmPerYear;
+
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8 py-8 sm:py-10 space-y-6 sm:space-y-8">
       {/* Header */}
@@ -68,67 +72,54 @@ export function DashboardView() {
           <div className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-red)] mb-1">
             Screening result
           </div>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight break-words">
+          <h1 className="text-3xl font-extrabold tracking-tight break-words">
             {analysis.projectName}
           </h1>
-          <p className="text-sm sm:text-base text-black/60 mt-1 break-words">
-            Site: {analysis.site.latitude.toFixed(4)}, {analysis.site.longitude.toFixed(4)} · Generated {new Date(analysis.generatedAt).toLocaleString()}
-          </p>
+          <p className="text-sm sm:text-base text-black/60 mt-1 break-words">A summary of water, environmental and planning considerations for this site.</p>
         </div>
       </motion.div>
 
       {/* Classification banner */}
       <ClassificationCard />
+      <section className="nb-card flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <h2 className="text-base font-bold">Estimated water need</h2>
+          <p className="text-xs text-black/60">Calculated from the project size and cooling choice</p>
+        </div>
+        <div className="text-right">
+          <div className="text-xl font-extrabold">{typeof dailyWater === "number" ? `${dailyWater.toLocaleString(undefined, { maximumFractionDigits: 1 })} kL/day` : "Unavailable"}</div>
+          {typeof annualWater === "number" && <div className="text-sm text-black/65">{annualWater.toLocaleString(undefined, { maximumFractionDigits: 2 })} million m³/year</div>}
+        </div>
+      </section>
+      <LiveConditionsPanel />
 
-      {/* Map + Ecology summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+      {/* Map and ecological assessment */}
+      <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-3">
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ type: "spring", stiffness: 60 }}
-          className="lg:col-span-3"
+          className="xl:col-span-2"
         >
           <SiteMap />
         </motion.div>
-        <motion.div
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ type: "spring", stiffness: 60, delay: 0.1 }}
-          className="lg:col-span-2"
-        >
-          <EcologyPanel />
-        </motion.div>
+        <div className="min-w-0"><EcologyPanel /></div>
       </div>
 
-      {/* Evidence panels grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold mb-3 sm:mb-4 mt-2">Site evidence</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {PANELS.map(({ Comp, key }, i) => (
-            <motion.div
-              key={key}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 + i * 0.08, type: "spring", stiffness: 80 }}
-            >
-              <Comp />
-            </motion.div>
+      <section aria-label="Screening analytics">
+        <h2 className="mb-4 text-xl font-bold">Site analytics</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {ANALYTICS.map(({ Component, key }) => (
+            <div key={key} className="min-w-0"><Component /></div>
           ))}
         </div>
-      </motion.div>
+      </section>
 
-      {/* Full provenance */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-      >
-        <EvidencePanel />
-      </motion.div>
+      <details className="nb-card p-4">
+        <summary className="cursor-pointer text-sm font-semibold">Data sources and coverage</summary>
+        <div className="mt-4"><EvidencePanel /></div>
+      </details>
+
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import {
   Droplets, Search, ShieldAlert, MapPin, Layers, Sparkles, ArrowRight,
@@ -12,19 +11,19 @@ const FEATURES = [
   {
     icon: Droplets,
     title: "Water demand modelling",
-    text: "Deterministic engine turns your IT load, PUE and WUE into precise daily and annual water requirements.",
+    text: "Estimate the water your data centre may need each day and year from its size and cooling system.",
     color: "var(--accent-red)",
   },
   {
     icon: Layers,
     title: "Spatial intelligence",
-    text: "Polygon checks against ESZ, forest, wetland and CRZ layers reveal ecological constraints before you commit.",
+    text: "See nearby forests, wetlands, protected areas and coastal zones before choosing a site.",
     color: "var(--accent-green)",
   },
   {
     icon: ShieldAlert,
     title: "Regulatory screening",
-    text: "CGWA groundwater rules, environmental clearance thresholds and pollution-board requirements evaluated upfront.",
+    text: "Review important water, environmental and planning considerations early.",
     color: "var(--accent-orange)",
   },
   {
@@ -41,41 +40,6 @@ const OUTCOMES = [
   { icon: HelpCircle, label: "Data insufficient", desc: "Critical evidence missing.", color: "var(--status-insufficient)" },
   { icon: XOctagon, label: "High constraint", desc: "Hard constraint — re-site or pursue clearance.", color: "var(--status-constraint)" },
 ];
-
-const STATS = [
-  { value: 16, suffix: "",  label: "Groundwater blocks mapped" },
-  { value: 8,  suffix: "",  label: "IMD rainfall stations" },
-  { value: 13, suffix: "",  label: "Ecological polygons" },
-  { value: 7,  suffix: "",  label: "Regulatory rules applied" },
-];
-
-/** Animated number counter that runs on mount. */
-function Counter({ value, suffix }: { value: number; suffix: string }) {
-  const [display, setDisplay] = useState(0);
-
-  useEffect(() => {
-    let raf = 0;
-    // Small delay so the spring enter animation finishes first
-    const startDelay = 200;
-    const startTimer = setTimeout(() => {
-      const start = performance.now();
-      const duration = 1400;
-      const tick = (now: number) => {
-        const t = Math.min(1, (now - start) / duration);
-        // easeOutCubic
-        const eased = 1 - Math.pow(1 - t, 3);
-        setDisplay(Math.round(eased * value));
-        if (t < 1) raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-    }, startDelay);
-    return () => { clearTimeout(startTimer); cancelAnimationFrame(raf); };
-  }, [value]);
-
-  return (
-    <span>{display}{suffix}</span>
-  );
-}
 
 export function HomeView() {
   const { setView } = useJalDrishti();
@@ -196,30 +160,6 @@ export function HomeView() {
             </motion.button>
           </motion.div>
 
-          {/* Animated stats strip */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
-            className="mt-10 sm:mt-14 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
-          >
-            {STATS.map((s, i) => (
-              <motion.div
-                key={s.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1 + i * 0.1, type: "spring" }}
-                className="nb-card-flat p-3 sm:p-4 text-center"
-              >
-                <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--accent-red)]">
-                  <Counter value={s.value} suffix={s.suffix} />
-                </div>
-                <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-black/70 mt-1 leading-tight">
-                  {s.label}
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
         </div>
       </section>
 
@@ -357,7 +297,7 @@ export function HomeView() {
             Ready to screen a site?
           </h2>
           <p className="relative text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-6 sm:mb-8">
-            Enter your project details and coordinates. Get a full feasibility
+            Enter your project details and choose a location on the map. Get a site
             breakdown in seconds.
           </p>
           <motion.button

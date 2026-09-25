@@ -3,342 +3,193 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { motion } from "framer-motion";
-import { Layers, MapPin } from "lucide-react";
+import { Layers } from "lucide-react";
+import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 
-// Layer colour scheme - each ecological layer gets a distinct, hard-edged colour
-const LAYER_COLORS: Record<string, { fill: string; line: string; label: string }> = {
-  esz:     { fill: "#8b5cf6", line: "#4c1d95", label: "ESZ" },
-  forest:  { fill: "#3ad17f", line: "#0f5132", label: "Forest" },
-  wetland: { fill: "#06b6d4", line: "#0e7490", label: "Wetland" },
-  crz:     { fill: "#ff8c1a", line: "#9a3412", label: "CRZ" },
+const COLORS = {
+  esz: { fill: "#8b5cf6", line: "#4c1d95", label: "Protected areas" },
+  forest: { fill: "#3ad17f", line: "#0f5132", label: "Forest" },
+  wetland: { fill: "#06b6d4", line: "#0e7490", label: "Wetlands" },
+  crz: { fill: "#ff8c1a", line: "#9a3412", label: "Coastal" },
+} as const;
+const LAYERS = ["crz", "wetland", "forest", "esz"] as const;
+type Layer = (typeof LAYERS)[number];
+const GLOBAL_VECTOR_SOURCE = "global-osm-ecology";
+const GLOBAL_VECTOR_LAYERS: Record<Layer, { sourceLayer: string; filter?: maplibregl.FilterSpecification }> = {
+  esz: { sourceLayer: "park", filter: ["in", ["get", "class"], ["literal", ["national_park", "nature_reserve", "wildlife_sanctuary", "bird_sanctuary", "protected_area", "biosphere_reserve"]]] },
+  forest: { sourceLayer: "landcover", filter: ["==", ["get", "class"], "wood"] },
+  wetland: { sourceLayer: "landcover", filter: ["==", ["get", "class"], "wetland"] },
+  crz: { sourceLayer: "landcover", filter: ["in", ["get", "subclass"], ["literal", ["mangrove", "saltmarsh", "tidalflat"]]] },
 };
 
-const LAYER_ORDER: ("esz" | "forest" | "wetland" | "crz")[] = ["crz", "wetland", "forest", "esz"];
-
-interface LayerToggle {
-  esz: boolean;
-  forest: boolean;
-  wetland: boolean;
-  crz: boolean;
+async function fetchLayer(layer: Layer, latitude: number, longitude: number) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(`/api/gis?layer=${layer}&lat=${latitude}&lng=${longitude}`);
+      if (!response.ok) throw new Error(`Layer request failed (${response.status})`);
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 }
 
 export function SiteMap() {
-  const mapContainer = useRef<HTMLDivElement>(null);
+  const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const markerRef = useRef<maplibregl.Marker | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [toggles, setToggles] = useState<LayerToggle>({ esz: true, forest: true, wetland: true, crz: true });
-  const { form, analysis, selectedPolygon, setSelectedPolygon } = useJalDrishti();
-  const mapLatitude = analysis?.site.latitude ?? form.latitude;
-  const mapLongitude = analysis?.site.longitude ?? form.longitude;
-  const mapProjectName = analysis?.projectName ?? form.projectName;
+  const [visibleLayers, setVisibleLayers] = useState<Record<Layer, boolean>>({ esz: true, forest: true, wetland: true, crz: true });
+  const { form, analysis } = useJalDrishti();
+  const rawLatitude = analysis?.site.latitude ?? form.latitude;
+  const rawLongitude = analysis?.site.longitude ?? form.longitude;
+  const latitude = Number.isFinite(rawLatitude) ? rawLatitude : 19.0418;
+  const longitude = Number.isFinite(rawLongitude) ? rawLongitude : 73.0856;
+  const projectName = analysis?.projectName ?? form.projectName;
+  const initialPosition = useRef({ latitude, longitude });
 
-  // ---- init map once ----
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return;
-
-    // Keep the worker versioned with the installed MapLibre package. The
-    // public copy avoids a runtime third-party dependency and CDN drift.
+    if (!container.current || mapRef.current) return;
     try {
-      const workerUrl = "/maplibre-gl-worker.mjs";
-      const ml = maplibregl as unknown as { setWorkerUrl?: (url: string) => void };
-      if (typeof ml.setWorkerUrl === "function") {
-        ml.setWorkerUrl(workerUrl);
-      }
-    } catch (e) {
-      console.warn("Failed to set maplibre worker URL", e);
-    }
+      const lib = maplibregl as unknown as { setWorkerUrl?: (url: string) => void };
+      lib.setWorkerUrl?.("/maplibre-gl-worker.mjs");
+    } catch { /* Use the default worker if the local worker is unavailable. */ }
 
-    // OSM raster tiles - free, no API key
     const map = new maplibregl.Map({
-      container: mapContainer.current,
+      container: container.current,
       style: {
         version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: "© OpenStreetMap contributors",
-          },
-        },
-        layers: [
-          {
-            id: "osm-tiles",
-            type: "raster",
-            source: "osm",
-            paint: { "raster-opacity": 0.85 },
-          },
-        ],
+        sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors" } },
+        layers: [{ id: "osm", type: "raster", source: "osm" }],
       },
-      center: [mapLongitude, mapLatitude],
-      zoom: 11,
+      center: [initialPosition.current.longitude, initialPosition.current.latitude],
+      zoom: 14,
+      dragPan: true,
+      scrollZoom: true,
       attributionControl: {},
-      hash: false,
     });
-
     mapRef.current = map;
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
     map.on("load", () => setLoaded(true));
-
     return () => {
       map.remove();
       mapRef.current = null;
+      markerRef.current = null;
     };
+  // Map is initialized once; site coordinates are applied after load.
   }, []);
 
-  // ---- load ecological layers ----
   useEffect(() => {
-    if (!loaded || !mapRef.current) return;
     const map = mapRef.current;
-
-    LAYER_ORDER.forEach((layerKey) => {
-      const color = LAYER_COLORS[layerKey];
-      const sourceId = `src-${layerKey}`;
-      const fillId = `fill-${layerKey}`;
-      const lineId = `line-${layerKey}`;
-      const labelId = `label-${layerKey}`;
-
-      // Remove existing layer/source if any
-      [fillId, lineId, labelId].forEach((id) => {
-        if (map.getLayer(id)) map.removeLayer(id);
+    if (!loaded || !map) return;
+    let cancelled = false;
+    if (!map.getSource(GLOBAL_VECTOR_SOURCE)) {
+      map.addSource(GLOBAL_VECTOR_SOURCE, {
+        type: "vector",
+        url: "https://tiles.openfreemap.org/planet/latest",
+        attribution: "© OpenStreetMap contributors © OpenMapTiles © OpenFreeMap",
       });
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-
-      fetch(`/api/gis?layer=${layerKey}`)
-        .then((r) => r.json())
-        .then((fc) => {
-          map.addSource(sourceId, { type: "geojson", data: fc });
-          map.addLayer({
-            id: fillId,
-            type: "fill",
-            source: sourceId,
-            paint: {
-              "fill-color": color.fill,
-              "fill-opacity": 0.35,
-            },
-            filter: ["==", "$type", "Polygon"],
-          });
-          map.addLayer({
-            id: lineId,
-            type: "line",
-            source: sourceId,
-            paint: {
-              "line-color": color.line,
-              "line-width": 2,
-            },
-          });
-          // Labels - symbol layer using name property
-          map.addLayer({
-            id: labelId,
-            type: "symbol",
-            source: sourceId,
-            layout: {
-              "text-field": ["get", "name"],
-              "text-size": 11,
-              "text-anchor": "center",
-              "text-allow-overlap": false,
-            },
-            paint: {
-              "text-color": "#000",
-              "text-halo-color": "#fff",
-              "text-halo-width": 2,
-            },
-          });
-
-          // Click handler
-          map.on("click", fillId, (e) => {
-            const f = e.features?.[0];
-            if (!f) return;
-            const props = f.properties as {
-              name: string;
-              layer: string;
-              category?: string;
-              source?: string;
-              sourceDate?: string;
-              evidenceStatus?: string;
-            };
-            setSelectedPolygon(props);
-            const coords = (f.geometry as { coordinates: number[][][] }).coordinates[0][0];
-            const popupContent = document.createElement("div");
-            const title = document.createElement("strong");
-            title.textContent = props.name;
-            const details = document.createElement("div");
-            details.style.fontSize = "11px";
-            details.textContent = `${props.layer.toUpperCase()} · ${props.category ?? ""}`;
-            const source = document.createElement("div");
-            source.style.fontSize = "10px";
-            source.textContent = `Source: ${props.source ?? ""}`;
-            const updated = document.createElement("div");
-            updated.style.fontSize = "10px";
-            updated.textContent = `Updated: ${props.sourceDate ?? ""}`;
-            const evidence = document.createElement("div");
-            evidence.style.fontSize = "10px";
-            evidence.textContent = `Evidence: ${props.evidenceStatus ?? ""}`;
-            popupContent.append(title, details, source, updated, evidence);
-            new maplibregl.Popup()
-              .setLngLat(coords as [number, number])
-              .setDOMContent(popupContent)
-              .addTo(map);
-          });
-
-          // Cursor
-          map.on("mouseenter", fillId, () => (map.getCanvas().style.cursor = "pointer"));
-          map.on("mouseleave", fillId, () => (map.getCanvas().style.cursor = ""));
+      for (const layer of LAYERS) {
+        const globalLayer = GLOBAL_VECTOR_LAYERS[layer];
+        map.addLayer({
+          id: `global-fill-${layer}`,
+          type: "fill",
+          source: GLOBAL_VECTOR_SOURCE,
+          "source-layer": globalLayer.sourceLayer,
+          ...(globalLayer.filter ? { filter: globalLayer.filter } : {}),
+          paint: { "fill-color": COLORS[layer].fill, "fill-opacity": 0.38 },
         });
-    });
-  }, [loaded, setSelectedPolygon]);
+        map.addLayer({
+          id: `global-line-${layer}`,
+          type: "line",
+          source: GLOBAL_VECTOR_SOURCE,
+          "source-layer": globalLayer.sourceLayer,
+          ...(globalLayer.filter ? { filter: globalLayer.filter } : {}),
+          paint: { "line-color": COLORS[layer].line, "line-width": 1.5 },
+        });
+      }
+    }
+    // Rebuild the overlays when the selected site changes so each map view
+    // shows nearby features for its current coordinates.
+    for (const layer of LAYERS) {
+      for (const id of [`label-${layer}`, `line-${layer}`, `fill-${layer}`]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource(`src-${layer}`)) map.removeSource(`src-${layer}`);
+    }
+    for (const layer of LAYERS) {
+      const sourceId = `src-${layer}`;
+      const fillId = `fill-${layer}`;
+      const lineId = `line-${layer}`;
+      const labelId = `label-${layer}`;
+      fetchLayer(layer, latitude, longitude).then((data) => {
+        if (cancelled || !map.getStyle() || map.getSource(sourceId)) return;
+        const color = COLORS[layer];
+        map.addSource(sourceId, { type: "geojson", data });
+        map.addLayer({ id: fillId, type: "fill", source: sourceId, paint: { "fill-color": color.fill, "fill-opacity": 0.3 } });
+        map.addLayer({ id: lineId, type: "line", source: sourceId, paint: { "line-color": color.line, "line-width": 2 } });
+        map.addLayer({ id: labelId, type: "symbol", source: sourceId, layout: { "text-field": ["get", "name"], "text-size": 11, "text-allow-overlap": false }, paint: { "text-color": "#000", "text-halo-color": "#fff", "text-halo-width": 2 } });
+        map.on("click", fillId, (event) => {
+          const feature = event.features?.[0];
+          if (!feature) return;
+          const name = String(feature.properties?.name ?? COLORS[layer].label);
+          const popup = document.createElement("div");
+          popup.textContent = name;
+          new maplibregl.Popup().setLngLat(event.lngLat).setDOMContent(popup).addTo(map);
+        });
+        map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", fillId, () => { map.getCanvas().style.cursor = ""; });
+        map.setLayoutProperty(fillId, "visibility", visibleLayers[layer] ? "visible" : "none");
+        map.setLayoutProperty(lineId, "visibility", visibleLayers[layer] ? "visible" : "none");
+        map.setLayoutProperty(labelId, "visibility", visibleLayers[layer] ? "visible" : "none");
+      }).catch((error) => console.warn(`Could not load ${layer} map layer`, error));
+    }
+    return () => { cancelled = true; };
+  }, [loaded, latitude, longitude]);
 
-  // ---- update site marker + fly when form coords change ----
   useEffect(() => {
-    if (!loaded || !mapRef.current) return;
     const map = mapRef.current;
+    if (!loaded || !map) return;
+    for (const layer of LAYERS) {
+      const visibility = visibleLayers[layer] ? "visible" : "none";
+      for (const id of [`fill-${layer}`, `line-${layer}`, `label-${layer}`, `global-fill-${layer}`, `global-line-${layer}`]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+      }
+    }
+  }, [visibleLayers, loaded]);
 
-    // Remove existing site marker
-    const existing = document.getElementById("site-marker");
-    if (existing) existing.remove();
-
-    const el = document.createElement("div");
-    el.id = "site-marker";
-    el.style.cssText = `
-      width: 24px; height: 24px;
-      background: var(--accent-red);
-      border: 3px solid #000;
-      border-radius: 50%;
-      box-shadow: 3px 3px 0 0 #000;
-      cursor: pointer;
-    `;
-    const popupContent = document.createElement("div");
-    const title = document.createElement("strong");
-    title.textContent = "Proposed Site";
-    const coordinates = document.createElement("div");
-    coordinates.style.fontSize = "11px";
-    coordinates.style.fontFamily = "monospace";
-    coordinates.textContent = `${mapLatitude.toFixed(4)}, ${mapLongitude.toFixed(4)}`;
-    const project = document.createElement("div");
-    project.style.fontSize = "10px";
-    project.textContent = mapProjectName;
-    popupContent.append(title, coordinates, project);
-
-    new maplibregl.Marker({ element: el })
-      .setLngLat([mapLongitude, mapLatitude])
-      .setPopup(new maplibregl.Popup().setDOMContent(popupContent))
-      .addTo(map);
-
-    map.flyTo({ center: [mapLongitude, mapLatitude], zoom: 12, duration: 1200 });
-  }, [loaded, mapLatitude, mapLongitude, mapProjectName]);
-
-  // ---- apply layer toggles ----
   useEffect(() => {
-    if (!loaded || !mapRef.current) return;
     const map = mapRef.current;
-    LAYER_ORDER.forEach((layerKey) => {
-      const fillId = `fill-${layerKey}`;
-      const lineId = `line-${layerKey}`;
-      const labelId = `label-${layerKey}`;
-      const visible = toggles[layerKey] ? "visible" : "none";
-      [fillId, lineId, labelId].forEach((id) => {
-        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visible);
-      });
-    });
-  }, [toggles, loaded]);
+    if (!loaded || !map) return;
+    if (!markerRef.current) {
+      markerRef.current = new maplibregl.Marker({ color: "#e64136" })
+        .setLngLat([longitude, latitude])
+        .addTo(map);
+    } else {
+      markerRef.current.setLngLat([longitude, latitude]);
+    }
+    markerRef.current.setPopup(new maplibregl.Popup().setText(projectName));
+    map.easeTo({ center: [longitude, latitude], zoom: 14, duration: 500 });
+  }, [loaded, latitude, longitude, projectName]);
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card overflow-hidden"
-    >
-      <div className="flex items-center justify-between border-b-[3px] border-black px-4 py-2.5 bg-[var(--accent-yellow)]">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4" />
-          <h2 className="text-base font-extrabold uppercase tracking-tight">Site map</h2>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {LAYER_ORDER.map((k) => (
-            <button
-              key={k}
-              onClick={() => setToggles((t) => ({ ...t, [k]: !t[k] }))}
-              className="text-[10px] font-bold uppercase border-[2px] border-black px-1.5 py-0.5"
-              style={{
-                background: toggles[k] ? LAYER_COLORS[k].fill : "var(--paper)",
-                color: toggles[k] ? "#fff" : "#000",
-                opacity: toggles[k] ? 1 : 0.55,
-              }}
-            >
-              {LAYER_COLORS[k].label}
+    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="nb-card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-[3px] border-black bg-[var(--accent-yellow)] px-4 py-3">
+        <h2 className="flex items-center gap-2 text-base font-bold"><Layers className="h-4 w-4" />Site map</h2>
+        <div className="flex flex-wrap gap-2">
+          {LAYERS.map((layer) => (
+            <button key={layer} type="button" aria-pressed={visibleLayers[layer]} onClick={() => setVisibleLayers((state) => ({ ...state, [layer]: !state[layer] }))} className="border-2 border-black px-2 py-1 text-xs font-semibold" style={{ background: visibleLayers[layer] ? COLORS[layer].fill : "var(--paper)" }}>
+              {COLORS[layer].label}
             </button>
           ))}
         </div>
       </div>
-
-      <div className="relative">
-        <div ref={mapContainer} className="w-full h-[320px] sm:h-[400px] md:h-[460px] border-b-[3px] border-black" />
-
-        {/* Coordinate readout */}
-        <div className="absolute bottom-2 left-2 bg-[var(--paper)] border-[3px] border-black px-2 py-1 text-[10px] font-mono font-bold shadow-[3px_3px_0_0_#000]">
-          <MapPin className="w-3 h-3 inline" /> {mapLatitude.toFixed(4)}, {mapLongitude.toFixed(4)}
-        </div>
-
-        {/* Selected polygon info */}
-        {selectedPolygon && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="absolute top-2 right-2 bg-[var(--paper)] border-[3px] border-black px-3 py-2 text-xs shadow-[3px_3px_0_0_#000] max-w-[260px]"
-          >
-            <div className="font-extrabold uppercase text-[10px] mb-0.5">Selected Polygon</div>
-            <div className="font-bold">{selectedPolygon.name}</div>
-            <div className="text-[10px] text-black/70 mt-0.5">
-              {selectedPolygon.layer.toUpperCase()} · {selectedPolygon.category}
-            </div>
-            <div className="text-[10px] text-black/60 mt-1">
-              {selectedPolygon.source}<br />
-              Updated: {selectedPolygon.sourceDate}<br />
-              Evidence: <span className="font-bold">{selectedPolygon.evidenceStatus}</span>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Legend */}
-        <div className="absolute top-2 left-2 bg-[var(--paper)] border-[3px] border-black px-2 py-1.5 text-[10px] font-bold shadow-[3px_3px_0_0_#000]">
-          <div className="uppercase text-[9px] mb-1">Legend</div>
-          {LAYER_ORDER.map((k) => (
-            <div key={k} className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-3 h-3 border border-black" style={{ background: LAYER_COLORS[k].fill }} />
-              {LAYER_COLORS[k].label}
-            </div>
-          ))}
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-3 h-3 rounded-full" style={{ background: "var(--accent-red)", border: "2px solid #000" }} />
-            Site
-          </div>
-        </div>
-      </div>
-
-      {/* Overlap banner from backend analysis */}
-      {analysis && (
-        <div className="px-4 py-2 bg-[var(--paper)] text-xs">
-          <div className="font-extrabold uppercase text-[10px] mb-1">Spatial check results</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-            {LAYER_ORDER.map((k) => {
-              const e = (analysis.ecology as Record<string, { overlap: boolean; nearestDistanceKm: number }>)[k];
-              return (
-                <div
-                  key={k}
-                  className="border-[2px] border-black px-2 py-1 font-mono"
-                  style={{ background: e?.overlap ? "var(--accent-red)" : "var(--accent-green)", color: "#000" }}
-                >
-                  <div className="font-extrabold uppercase">{LAYER_COLORS[k].label}</div>
-                  <div className="text-[10px]">
-                    {e?.overlap ? "OVERLAP" : "CLEAR"} · {e?.nearestDistanceKm?.toFixed(2) ?? "0"} km
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <div ref={container} aria-label="Map showing the selected site and nearby environmental areas" className="h-[360px] w-full sm:h-[460px]" />
+      <p className="border-t-2 border-black px-4 py-2 text-xs text-black/65">Global mapped forests, wetlands and protected areas use OpenStreetMap data through OpenMapTiles and OpenFreeMap. They are indicative; confirm boundaries with local authorities. Drag to move or zoom in to see more.</p>
     </motion.section>
   );
 }

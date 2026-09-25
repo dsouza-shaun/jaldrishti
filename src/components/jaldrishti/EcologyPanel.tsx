@@ -54,7 +54,6 @@ export function EcologyPanel() {
         {layers.map((k) => {
           const e = eco[k];
           const meta = LAYER_META[k];
-          const proxyEvidence = e.evidenceStatus !== "VERIFIED";
           return (
             <div
               key={k}
@@ -75,13 +74,7 @@ export function EcologyPanel() {
                         color: e.overlap ? "#fff" : "#000",
                       }}
                     >
-                      {e.overlap
-                        ? proxyEvidence
-                          ? "PROXY OVERLAP"
-                          : "OVERLAP"
-                        : proxyEvidence
-                          ? "NO OVERLAP (PROXY)"
-                          : "CLEAR"}
+                      {e.overlap ? "Potential overlap" : "No overlap found"}
                     </span>
                     {!e.overlap && (
                       <span className="text-[10px] font-mono">
@@ -93,12 +86,9 @@ export function EcologyPanel() {
                         → {e.intersectedPolygons.map((p) => p.name).join(", ")}
                       </span>
                     )}
-                    <span className="ml-auto">
-                      <EvidenceBadge status={e.rule.provenance.evidenceStatus} />
-                    </span>
                   </div>
                   <div className="mt-1 text-[10px] font-mono text-black/70">
-                    {e.rule.outcome} · {e.rule.hardConstraint ? "HARD CONSTRAINT" : "no hard constraint"}
+                    {e.rule.outcome}
                   </div>
                   <ul className="mt-0.5 space-y-0">
                     {e.rule.reasons.map((reason, i) => (

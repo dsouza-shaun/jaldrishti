@@ -44,7 +44,7 @@ export function GroundwaterPanel() {
     groundwater.datasetType === "DISTRICT_CSV"
       ? "District CSV"
       : groundwater.datasetType === "MOCK_BLOCK_FALLBACK"
-        ? "Mock centroid fallback"
+        ? "Nearby area estimate"
         : "No dataset match";
 
   return (
@@ -57,7 +57,6 @@ export function GroundwaterPanel() {
         <h3 className="text-sm font-extrabold uppercase tracking-tight">
           Groundwater
         </h3>
-        <EvidenceBadge status={groundwater.provenance.evidenceStatus} />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -167,15 +166,7 @@ function Info({
 }
 
 export function EvidenceBadge({ status }: { status: string }) {
-  const color =
-    status === "VERIFIED"
-      ? "var(--status-verified)"
-      : status === "PROXY"
-        ? "var(--status-proxy)"
-        : "var(--status-unknown)";
-  return (
-    <span className="nb-badge" style={{ background: color }}>
-      {status}
-    </span>
-  );
+  const label = status === "VERIFIED" ? "Available" : status === "PROXY" ? "Estimate" : "Limited data";
+  const color = status === "VERIFIED" ? "var(--status-verified)" : status === "PROXY" ? "var(--status-conditional)" : "var(--status-unknown)";
+  return <span className="nb-badge" style={{ background: color }}>{label}</span>;
 }
