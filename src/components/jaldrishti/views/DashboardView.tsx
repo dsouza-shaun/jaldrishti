@@ -5,6 +5,7 @@ import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { SiteMap } from "@/components/jaldrishti/SiteMap";
 import { ClassificationCard } from "@/components/jaldrishti/ClassificationCard";
 import { WaterDemandPanel } from "@/components/jaldrishti/WaterDemandPanel";
+import { LocationPanel } from "@/components/jaldrishti/LocationPanel";
 import { GroundwaterPanel } from "@/components/jaldrishti/GroundwaterPanel";
 import { RainfallPanel } from "@/components/jaldrishti/RainfallPanel";
 import { RegulatoryPanel } from "@/components/jaldrishti/RegulatoryPanel";
@@ -15,6 +16,7 @@ import { AIExplanationPanel } from "@/components/jaldrishti/AIExplanationPanel";
 import { Search, ArrowRight } from "lucide-react";
 
 const PANELS = [
+  { Comp: LocationPanel, key: "location" },
   { Comp: WaterDemandPanel, key: "water" },
   { Comp: GroundwaterPanel, key: "gw" },
   { Comp: RainfallPanel,    key: "rf" },

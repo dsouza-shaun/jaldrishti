@@ -20,6 +20,29 @@ export function EvidencePanel() {
 
   const rows: EvidenceRow[] = [];
 
+  const location = analysis.siteData.location as unknown as {
+    retrievedAt: string;
+    cacheStatus: string;
+    data: {
+      displayName: string;
+      district: string | null;
+      state: string | null;
+      pincode: string | null;
+      attribution: { label: string };
+    };
+  } | null;
+  if (location) {
+    rows.push({
+      key: "location",
+      label: "Reverse-geocoded location",
+      value: `${location.data.district ?? "?"}, ${location.data.state ?? "?"}`,
+      source: location.data.attribution.label,
+      sourceDate: location.retrievedAt,
+      evidenceStatus: "PROXY",
+      category: "data",
+    });
+  }
+
   // Water demand
   const w = analysis.waterDemand as { provenance: { source: string; sourceDate: string; evidenceStatus: string }; wueUsed: number };
   rows.push({
@@ -33,11 +56,11 @@ export function EvidencePanel() {
   });
 
   // Groundwater
-  const g = analysis.groundwater as { block: string | null; category: string; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
+  const g = analysis.groundwater as { datasetType: string; block: string | null; district: string | null; category: string; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
   rows.push({
     key: "gw",
-    label: "Groundwater block",
-    value: `${g.block ?? "UNKNOWN"} (${g.category})`,
+    label: "Groundwater screening",
+    value: `${g.datasetType === "DISTRICT_CSV" ? g.district : g.block ?? "UNKNOWN"} (${g.category})`,
     source: g.provenance.source,
     sourceDate: g.provenance.sourceDate,
     evidenceStatus: g.provenance.evidenceStatus,
@@ -45,11 +68,11 @@ export function EvidencePanel() {
   });
 
   // Rainfall
-  const r = analysis.rainfall as { station: string | null; annualNormal: number | null; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
+  const r = analysis.rainfall as { station: string | null; annualRainfallMm: number | null; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
   rows.push({
     key: "rainfall",
-    label: "Rainfall station",
-    value: `${r.station ?? "—"} (${r.annualNormal ?? "—"} mm)`,
+    label: "Rainfall dataset record",
+    value: `${r.station ?? "—"} (${r.annualRainfallMm ?? "—"} mm)`,
     source: r.provenance.source,
     sourceDate: r.provenance.sourceDate,
     evidenceStatus: r.provenance.evidenceStatus,
@@ -73,6 +96,46 @@ export function EvidencePanel() {
     }
   }
 
+  const climate = analysis.siteData.climate as unknown as {
+    provider: string;
+    retrievedAt: string;
+    data: {
+      current: { temperatureC: number | null } | null;
+      attribution: { label: string };
+    };
+  } | null;
+  if (climate?.data.current) {
+    rows.push({
+      key: "climate",
+      label: "Modelled current weather",
+      value: `${climate.data.current.temperatureC ?? "—"}°C`,
+      source: climate.data.attribution.label,
+      sourceDate: climate.retrievedAt,
+      evidenceStatus: "PROXY",
+      category: "data",
+    });
+  }
+
+  const landCover = analysis.siteData.landCover as unknown as {
+    available: boolean;
+    location: string | null;
+    sample: { dominantClassCode: number | null } | null;
+    provenance: { source: string; sourceDate: string; evidenceStatus: string };
+  } | null;
+  if (landCover) {
+    rows.push({
+      key: "land-cover",
+      label: "Bundled land-cover raster",
+      value: landCover.available
+        ? `${landCover.location}: code ${landCover.sample?.dominantClassCode ?? "unknown"}`
+        : "Outside available raster footprints",
+      source: landCover.provenance.source,
+      sourceDate: landCover.provenance.sourceDate,
+      evidenceStatus: landCover.provenance.evidenceStatus,
+      category: "data",
+    });
+  }
+
   // Rules
   const reg = analysis.regulatory as Record<string, { provenance: { source: string; sourceDate: string; evidenceStatus: string }; outcome: string }>;
   for (const k of ["cgwa", "ec", "spcb"]) {
@@ -91,16 +154,28 @@ export function EvidencePanel() {
   }
 
   // Power
-  const p = analysis.power as { timeline: string; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
+  const p = analysis.power as { timeline: string; nearbyPowerPlants: Array<{ name: string; distanceKm: number }>; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
   rows.push({
     key: "power",
-    label: "Power connection timeline",
-    value: p.timeline,
+    label: "Power inventory / connection",
+    value: `${p.timeline}; ${p.nearbyPowerPlants.length} nearby plant record(s)`,
     source: p.provenance.source,
     sourceDate: p.provenance.sourceDate,
     evidenceStatus: p.provenance.evidenceStatus,
     category: "data",
   });
+
+  for (const [index, failure] of analysis.siteData.failures.entries()) {
+    rows.push({
+      key: `provider-failure-${index}`,
+      label: `Provider unavailable: ${failure.provider}`,
+      value: failure.message,
+      source: failure.provider,
+      sourceDate: "Current analysis attempt",
+      evidenceStatus: "UNKNOWN",
+      category: "data",
+    });
+  }
 
   const verified = rows.filter((r) => r.evidenceStatus === "VERIFIED").length;
   const proxy = rows.filter((r) => r.evidenceStatus === "PROXY").length;

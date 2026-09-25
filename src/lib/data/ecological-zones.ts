@@ -1,10 +1,10 @@
 /**
  * Ecological GIS layers for the Maharashtra (Mumbai-Pune-Navi Mumbai) region.
  * --------------------------------------------------------------
- * Polygons are simplified representations of the actual notified areas.
- * Real boundaries would come from MoEFCC / Bhuvan / state forest dept GIS
- * portals. The shapes below are realistic in geographic position and
- * approximate extent so that the spatial intersection demo is meaningful.
+ * Polygons are hand-drawn screening fixtures, not authoritative notified
+ * boundaries. Real boundaries must come from MoEFCC / Bhuvan / state forest
+ * department GIS portals. Every feature is therefore PROXY and must not be
+ * treated as a legal overlap determination.
  *
  * Layers:
  *   esz      - Eco-Sensitive Zones around protected areas
@@ -27,7 +27,7 @@ export interface EcologicalLayerDef {
   coordinates: number[][][];
   source: string;
   sourceDate: string;
-  evidenceStatus: "VERIFIED" | "PROXY" | "UNKNOWN";
+  evidenceStatus: "PROXY" | "UNKNOWN";
 }
 
 // Helper: build a polygon ring that closes itself.
@@ -56,7 +56,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC ESZ Notification - Sanjay Gandhi National Park",
     sourceDate: "2016-12-09",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "esz",
@@ -71,7 +71,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC ESZ Notification - Tungareshwar WLS",
     sourceDate: "2018-05-22",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "esz",
@@ -86,7 +86,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC ESZ Notification - Karnala Bird Sanctuary",
     sourceDate: "2017-03-15",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "esz",
@@ -101,7 +101,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC Notification - Matheran ESZ (extended)",
     sourceDate: "2019-11-08",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ============================================================
   // Forest
@@ -119,7 +119,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra Forest Department GIS portal",
     sourceDate: "2022-06",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "forest",
@@ -134,7 +134,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra Forest Department GIS portal",
     sourceDate: "2022-06",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "forest",
@@ -149,7 +149,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra Forest Department GIS portal",
     sourceDate: "2022-06",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ============================================================
   // Wetland
@@ -168,7 +168,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra State Wetland Authority / BNHS",
     sourceDate: "2021-08",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "wetland",
@@ -183,7 +183,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra State Wetland Authority / MCZMA",
     sourceDate: "2020-11",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "wetland",
@@ -198,7 +198,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra State Wetland Authority / MCZMA",
     sourceDate: "2020-11",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "wetland",
@@ -213,7 +213,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "Maharashtra State Wetland Authority / MCZMA",
     sourceDate: "2020-11",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ============================================================
   // CRZ - Coastal Regulation Zone (land strip along the coast)
@@ -232,7 +232,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC CRZ Notification 2018 - Maharashtra Coastal Map",
     sourceDate: "2018-01-18",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "crz",
@@ -247,7 +247,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC CRZ Notification 2018 - Maharashtra Coastal Map",
     sourceDate: "2018-01-18",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     layer: "crz",
@@ -262,7 +262,7 @@ export const ECOLOGICAL_LAYERS: EcologicalLayerDef[] = [
     ],
     source: "MoEFCC CRZ Notification 2018 - Maharashtra Coastal Map",
     sourceDate: "2018-01-18",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
 ];
 

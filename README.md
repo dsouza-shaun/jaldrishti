@@ -8,6 +8,8 @@
 
 It is **not** a black-box score. It is **not** an AI that predicts whether a site is good. It is a deterministic rule engine that combines project inputs, water-demand calculations, groundwater information, surface-water information, rainfall/climate data, water-quality data, ecological GIS layers, regulatory rules, environmental-clearance applicability, CGWA groundwater/NOC logic, and evidence/provenance for every result and produces a transparent, explainable **four-way classification**.
 
+See **[Data integration architecture](docs/DATA_INTEGRATION.md)** for the bundled CSV/GeoTIFF pipeline, live providers, cache behavior, API contracts, and source limitations.
+
 ---
 
 ## Screenshots
@@ -46,8 +48,8 @@ For a proposed data-centre site, JalDrishti:
 1. **Ingests project inputs** — site coordinates, IT load, PUE, WUE, cooling technology, built-up area, land tenure, proposed water source, alternative water source.
 2. **Runs spatial checks** — tests the site point against ESZ, forest, wetland and CRZ polygon layers for overlaps and proximity (Turf.js mirrors PostGIS `ST_Intersects` / `ST_Within` / `ST_Distance`).
 3. **Computes water demand** — deterministic engine turns IT load × PUE × 24 × WUE into daily and annual water requirements.
-4. **Looks up groundwater** — finds the nearest CGWB block and reads its category (Safe / Semi-Critical / Critical / Over-Exploited / Saline), stage of development, TDS, pre/post-monsoon depth.
-5. **Looks up rainfall** — finds the nearest IMD rainfall station and reads its annual normal, monsoon normal, and 10-year time series.
+4. **Looks up groundwater** — joins a reverse-geocoded state/district to the bundled district resource CSV; if no exact record exists, it uses a clearly labelled nearest-centroid mock fallback. District data is not presented as a verified CGWB block.
+5. **Looks up rainfall** — joins to the bundled district rainfall aggregate, optionally exposes exact IMD-subdivision history, and adds a modelled Open-Meteo forecast. The original station seeds remain fallback-only.
 6. **Applies regulatory rules** — CGWA NOC eligibility, Environmental Clearance applicability (EIA 2006 Schedule 8b), ecological constraints (ESZ / Forest / Wetland / CRZ), SPCB consent requirements.
 7. **Produces a four-way classification** — Feasible / Feasible with Conditions / Data Insufficient / High Constraint.
 8. **Attaches provenance** — every data point carries its source, source date, and evidence status (VERIFIED / PROXY / UNKNOWN) all the way to the final decision.
@@ -62,7 +64,7 @@ These are non-negotiable design rules:
 1. **No black-box score.** The output is a four-way classification, not a number out of 100.
 2. **AI does not decide feasibility.** The LLM only explains the structured JSON produced by the rule engine.
 3. **No fabricated data.** Missing values are flagged `UNKNOWN` — never silently filled in; representative or proxy values are labeled as such.
-4. **Static datasets are not called "live APIs."** The current reference GIS, rainfall, and groundwater datasets are versioned in `src/lib/data/` (with database models available for future refreshes); they are not live feeds.
+4. **Static and modelled sources are labelled accurately.** Bundled CSVs/GeoTIFFs are cached datasets, not live feeds; Open-Meteo outputs are model snapshots. Provenance and evidence status travel with each result.
 5. **No invented regulatory thresholds.** Every threshold (e.g. 150,000 m² for EC 8b) comes from the cited regulation.
 6. **No invented GIS buffer distances.** If a regulation specifies a buffer, it is encoded in the rule; otherwise the system reports "regulatory buffer not configured."
 7. **Provenance stays attached.** Source and evidence status travel with every value into the rule engine and into the final classification.
@@ -102,6 +104,7 @@ These are non-negotiable design rules:
 │   └── custom.db                  # Local SQLite database (created/updated by db:push)
 ├── public/
 │   ├── maplibre-gl-worker.mjs     # MapLibre worker (served from /public)
+│   ├── maplibre-gl-shared.mjs     # Worker runtime dependency
 │   ├── logo.svg
 │   └── robots.txt
 ├── src/
@@ -110,16 +113,16 @@ These are non-negotiable design rules:
 │   │   ├── page.tsx               # View router (Home / Analyze / Dashboard / Scenarios / About)
 │   │   ├── globals.css            # Neo-brutalist design system + animations
 │   │   └── api/
-│   │       ├── projects/
-│   │       │   ├── route.ts                  # POST/GET /api/projects
-│   │       │   └── [id]/
-│   │       │       ├── route.ts              # GET /api/projects/[id]
-│   │       │       ├── analyze/route.ts      # POST/GET /api/projects/[id]/analyze
-│   │       │       └── scenarios/route.ts    # POST/GET /api/projects/[id]/scenarios
-│   │       ├── gis/
-│   │       │   ├── route.ts                  # GET /api/gis?layer=esz|forest|wetland|crz
-│   │       │   └── [layer]/route.ts          # GET /api/gis/[layer]
-│   │       └── explain/route.ts              # POST /api/explain (AI explanation)
+│   │       ├── projects/                     # Project, analysis, and scenario persistence
+│   │       ├── gis/                          # Curated ecological GeoJSON endpoints
+│   │       ├── geocode/route.ts              # Nominatim + district CSV lookup
+│   │       ├── climate/route.ts              # Open-Meteo forecast, ET0, soil, radiation
+│   │       ├── environment/route.ts          # Weather + CAMS air quality + GloFAS
+│   │       ├── power-plants/route.ts         # Nearest bundled GPPD-derived plants
+│   │       ├── land-cover/route.ts           # WorldCover footprint/class-code lookup
+│   │       ├── rainfall-history/route.ts     # Exact IMD-subdivision history
+│   │       ├── datasets/route.ts             # Bundled dataset health/summary
+│   │       └── explain/route.ts              # Optional AI explanation
 │   ├── components/
 │   │   ├── ui/                    # shadcn/ui components (button, card, toast, etc.)
 │   │   └── jaldrishti/
@@ -154,16 +157,26 @@ These are non-negotiable design rules:
 │   │   ├── gis/
 │   │   │   └── spatial.ts                 # Turf.js wrapper (ST_Intersects, ST_Within, ST_Distance)
 │   │   ├── data/
-│   │   │   ├── groundwater.ts             # 16 CGWB groundwater blocks (MH/TG/TN)
-│   │   │   ├── rainfall.ts               # 8 IMD rainfall stations with 10-year series
-│   │   │   └── ecological-zones.ts        # 14 ESZ/Forest/Wetland/CRZ polygons (Maharashtra)
+│   │   │   ├── groundwater.ts             # Mock block fallback only
+│   │   │   ├── rainfall.ts               # Mock station fallback only
+│   │   │   ├── groundwater-data.ts       # All-India groundwater district CSV index
+│   │   │   ├── rainfall-data.ts          # District rainfall + IMD-subdivision history
+│   │   │   ├── power-plants-data.ts      # GPPD-derived plant index and haversine lookup
+│   │   │   ├── land-cover-data.ts        # GeoTIFF footprint and class-code lookup
+│   │   │   ├── geo-tiff.ts               # GeoTIFF tag/bounds reader
+│   │   │   └── ecological-zones.ts       # 14 curated ESZ/Forest/Wetland/CRZ polygons
 │   │   └── stores/
 │   │       └── jaldrishti-store.ts        # Zustand store (form, analysis, scenarios, view router)
 │   └── hooks/
 │       ├── use-toast.ts          # Toast hook (shadcn)
 │       └── use-mobile.ts         # Mobile detection hook
-├── .env                           # Local-only: DATABASE_URL=file:../db/custom.db
+├── .env                           # Local-only runtime configuration
+├── .env.example                   # Safe configuration template
+├── datasets/                      # Bundled CSV and GeoTIFF sources
+├── docs/DATA_INTEGRATION.md       # Data semantics, cache, API, and policy notes
 ├── package.json
+├── scripts/
+│   └── clean-standalone.mjs       # Removes copied local .env files after build
 ├── next.config.ts                 # output: "standalone"
 ├── tailwind.config.ts
 ├── tsconfig.json
@@ -222,7 +235,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-As an API smoke test, open [http://localhost:3000/api/projects](http://localhost:3000/api/projects). A healthy server returns HTTP `200` with a JSON response containing a `projects` array. The `db:push` output should also identify the database as `file:../db/custom.db`; a different but writable SQLite path can otherwise return an empty array from the wrong database.
+As an API smoke test, open [http://localhost:3000/api/datasets](http://localhost:3000/api/datasets). A healthy server returns HTTP `200` and reports the bundled dataset counts: 689 groundwater rows, 641 district-rainfall rows, 4,116 historical-rainfall rows, 861 coordinate-bearing power plants, and 40 unique WorldCover rasters after the bundled season copies are deduplicated across 40 locations. `GET /api/projects` is owner-scoped and returns `401` until a project has been created to establish the anonymous `jaldrishti_owner` cookie. The `db:push` output should also identify the database as `file:../db/custom.db`; a different but writable SQLite path can otherwise return an empty array from the wrong database.
 
 ### Option B — Bun
 
@@ -265,8 +278,11 @@ Use the `Network` URL printed by Next.js, such as `http://192.168.1.50:3000`. Do
 |          npm          |          Bun          |                                 What it does                                 |
 | --------------------- | --------------------- | ---------------------------------------------------------------------------- |
 | `npm run dev`         | `bun run dev`         | Start the development server on port 3000                                    |
-| `npm run build`       | `bun run build`       | Create a production build                                                    |
+| `npm run build`       | `bun run build`       | Create a production build and remove environment files from standalone output |
+| `npm run start`       | `bun run start`       | Start the regular Next.js production server                                  |
+| `npm run start:standalone` | `bun run start:standalone` | Start the generated standalone server (`.next/standalone/server.js`) |
 | `npm run lint`        | `bun run lint`        | Run ESLint                                                                   |
+| `npm run typecheck`  | `bun run typecheck`  | Run the project-local TypeScript compiler without emitting files              |
 | `npm run db:push`     | `bun run db:push`     | **Initial local setup:** create/update the SQLite schema and generate Prisma Client |
 | `npm run db:generate` | `bun run db:generate` | Regenerate Prisma Client, especially after schema or dependency changes      |
 | `npm run db:migrate`  | `bun run db:migrate`  | Alternate interactive migration workflow; no migrations are checked in yet |
@@ -276,19 +292,28 @@ Use the `Network` URL printed by Next.js, such as `http://192.168.1.50:3000`. Do
 
 The current repository uses `db:push` for its initial schema. There is no checked-in `prisma/migrations/` history, so do not mix `db:migrate` and `db:push` casually. `db:reset` cannot reconstruct the current schema from migration history in this repository; if it is used, take a backup and follow it with `db:push` to recreate the schema.
 
-The quick start is for local development. There is currently no `start` script in `package.json`; `next.config.ts` enables standalone output for a separate production deployment workflow.
+The quick start is for local development. For a production build, run `npm run build`; the `postbuild` hook removes local `.env*` files that Next.js copies into standalone output and copies the required `public/` and `.next/static/` assets into the standalone bundle. Use `npm run start` for the regular production server or `npm run start:standalone` for the generated standalone server.
 
 ---
 
 ## Configuration
 
-### Environment variable (`.env`)
+### Environment variables (`.env`)
 
-Create `.env` in the repository root with this exact value:
+Create `.env` in the repository root with at least the local database value:
 
 ```env
 DATABASE_URL=file:../db/custom.db
 ```
+
+The live-data integration runs without credentials on eligible non-commercial Open-Meteo and public Nominatim services, but production deployments should copy `.env.example` and configure:
+
+- `NOMINATIM_USER_AGENT` with an application identifier and maintainer contact, as required by the public Nominatim policy.
+- `NOMINATIM_BASE_URL` so the geocoder can be switched to a self-hosted or alternative compliant instance.
+- `OPEN_METEO_API_KEY` when required by the deployment's Open-Meteo plan; never expose it as a `NEXT_PUBLIC_` variable.
+- `JALDRISHTI_DATASETS_DIR` only when the bundled datasets are mounted outside the repository/standalone output.
+
+The Nominatim public endpoint must remain direct, user-triggered, cached, attributed, and rate-limited. See [`docs/DATA_INTEGRATION.md`](docs/DATA_INTEGRATION.md) before changing these settings.
 
 Prisma resolves SQLite paths relative to `prisma/schema.prisma`:
 
@@ -311,13 +336,13 @@ DATABASE_URL=file:/home/username/jaldrishti/db/custom.db
 DATABASE_URL=file:C:/Users/username/Projects/jaldrishti/db/custom.db
 ```
 
-Because `.env` is intentionally ignored by Git, every new clone or device needs its own `.env` file. The value is identical everywhere.
+Because `.env` is intentionally ignored by Git (and the local SQLite file is ignored as well), every new clone or device needs its own local configuration. `.env.example` is safe to commit. The value is identical everywhere.
 
 ### SQLite database and backups
 
 - The database is `<repository>/db/custom.db`.
 - `npm run db:push` normally retains compatible rows while synchronizing the Prisma schema, but schema changes can drop or recreate data; back up the database first.
-- In the current MVP, the reference groundwater, rainfall, and GIS datasets used by the UI/engines are bundled under `src/lib/data/`; `db:push` creates the schema but is not a dataset seed command.
+- In the current MVP, the reference groundwater, rainfall, power, and land-cover datasets are bundled under `datasets/` and loaded by the typed data adapters in `src/lib/data/`; `db:push` creates the schema but is not a dataset seed command.
 - Stop the dev server before copying or backing up the database.
 - To move existing projects to another device, copy `db/custom.db` while the server is stopped; copying `.env` alone does not copy the data.
 - Never delete `db/custom.db` unless a fresh empty database is intended.
@@ -325,21 +350,24 @@ Because `.env` is intentionally ignored by Git, every new clone or device needs 
 
 ### MapLibre worker
 
-The worker at `public/maplibre-gl-worker.mjs` is a copy of the installed MapLibre worker. If `maplibre-gl` is upgraded, refresh it with the command for your shell:
+The files at `public/maplibre-gl-worker.mjs` and `public/maplibre-gl-shared.mjs` are copies of the installed MapLibre worker and its runtime dependency. If `maplibre-gl` is upgraded, refresh both files with the command for your shell:
 
 ```powershell
 # Windows PowerShell
 Copy-Item node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs public/maplibre-gl-worker.mjs
+Copy-Item node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/maplibre-gl-shared.mjs
 ```
 
 ```text
 # Windows Command Prompt
 copy /Y node_modules\maplibre-gl\dist\maplibre-gl-worker.mjs public\maplibre-gl-worker.mjs
+copy /Y node_modules\maplibre-gl\dist\maplibre-gl-shared.mjs public\maplibre-gl-shared.mjs
 ```
 
 ```bash
 # macOS or Linux
 cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs public/maplibre-gl-worker.mjs
+cp node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/maplibre-gl-shared.mjs
 ```
 
 ### AI explanation layer
@@ -618,9 +646,13 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   turbopack: { root: projectRoot },
   output: "standalone",
-  typescript: {
-    ignoreBuildErrors: true,
+  outputFileTracingIncludes: {
+    "/*": [
+      "./datasets/*.csv",
+      "./datasets/India_Land_Cover/**/worldcover.tif",
+    ],
   },
+  serverExternalPackages: ["sharp"],
   reactStrictMode: false,
 };
 
@@ -642,7 +674,7 @@ USER INPUT
     ↓
 LOCATION / COORDINATES  →  normalized site point
     ↓
-DATA INPUTS  →  versioned static reference fixtures in `src/lib/data/` (MVP)
+DATA INPUTS  →  cached district CSV + mock fallback + georeferenced rasters + live provider snapshots
     ↓
 SPATIAL PROCESSING  →  Turf.js checks against the bundled GIS fixtures
     ↓
@@ -673,61 +705,53 @@ DASHBOARD / REPORT
 
 ## Datasets used
 
-The current MVP uses curated, versioned reference fixtures based on cited Indian public sources. They are not live feeds and are not automatically refreshed. Values marked `PROXY` or `UNKNOWN` are intentionally surfaced as such; representative or approximate fixture values must not be treated as a current official record.
+JalDrishti now loads the bundled files under `datasets/` into typed, process-cached indexes. The original mock groundwater blocks and rainfall stations remain fallback-only. A fallback or approximate value is never described as current official data.
 
-### Groundwater (16 blocks)
+### Groundwater district resources
 
-**Source:** Central Ground Water Board (CGWB) *Ground Water Year Book* — Maharashtra, Telangana, Tamil Nadu states.
+**File:** `datasets/ground_water_2017.csv` (689 rows)
+**Loader:** `src/lib/data/groundwater-data.ts`
 
-Each block carries:
+The file is joined to the reverse-geocoded state and district. It provides recharge, extraction, availability, and extraction-stage fields, but **does not provide a CGWB assessment-unit/block boundary or a source category field**; the displayed screening category is derived from conventional extraction-stage bands. Results therefore remain `PROXY`; `NA` is preserved as unknown rather than converted to zero. The file has mixed temporal metadata (a 2017 dataset name and an allocation field labelled as on 2025), which is surfaced in provenance.
 
-- State, district, block name
-- Stage of groundwater development (%)
-- Category: `Safe` | `Semi-Critical` | `Critical` | `Over-Exploited` | `Saline`
-- Pre-monsoon and post-monsoon depth to water table (mbgl)
-- Annual recharge and extraction (ham)
-- TDS (mg/L)
-- Source, source date, evidence status
+The existing block fixtures in `src/lib/data/groundwater.ts` are used only when no district CSV record is available.
 
-**Covered blocks include:** Panvel, Taloja, Uran, Karjat, Khalapur, Pen (Raigad); Andheri-Borivali (Mumbai Suburban); Haveli, Maval, Khed, Mulshi (Pune); Nashik-City; Nagpur-Urban; Bhiwandi (Thane); Hyderabad-Urban; Chennai-City.
+### Rainfall
 
-**File:** `src/lib/data/groundwater.ts`
+**District file:** `datasets/district_wise_rainfall.csv` (641 rows)
+**Historical file:** `datasets/rainfall_in_india_1901-2015.csv` (4,116 rows)
+**Loader:** `src/lib/data/rainfall-data.ts`
 
-### Rainfall (8 stations)
+The district file supplies monthly and seasonal aggregates. Its normal period is not encoded, so it is not called a current verified normal. The historical file is keyed to IMD meteorological subdivisions, not districts; `/api/rainfall-history` therefore requires an exact subdivision and does not invent a crosswalk. The eight station fixtures in `src/lib/data/rainfall.ts` remain fallback-only.
 
-**Source:** India Meteorological Department (IMD) *District-Wise Rainfall Statistics*.
+### Power plants
 
-Each station carries:
+**File:** `datasets/india_power_plant_dataset.csv` (907 rows; 861 coordinate-bearing)
+**Loader:** `src/lib/data/power-plants-data.ts`
 
-- Station name, state, district, latitude, longitude
-- Annual normal (mm)
-- Monsoon normal (Jun–Sep, mm)
-- Post-monsoon, winter, summer rainfall (mm)
-- 10-year annual time series
-- Source, source date, evidence status
+Coordinate-bearing GPPD-derived plants are ranked with haversine distance. The latest populated generation year is derived per plant rather than assuming 2019 is populated. Nearby plant inventory is contextual only: it does not prove transmission availability, deliverable capacity, or a viable grid connection.
 
-**Covered stations:** Mumbai (Santacruz), Mumbai (Colaba), Taloja (MIDC), Pune, Nashik, Nagpur, Hyderabad, Chennai.
+### India land cover
 
-**File:** `src/lib/data/rainfall.ts`
+**Files:** `datasets/India_Land_Cover/<location>_<season>/worldcover.tif` (40 locations × 3 seasons)
+**Loaders:** `src/lib/data/land-cover-data.ts`, `src/lib/data/geo-tiff.ts`
 
-### Ecological GIS layers (14 polygons)
+The loader hashes the 120 `worldcover.tif` source files, deduplicates the byte-identical season copies to 40 rasters, reads GeoTIFF dimensions/EPSG:4326 affine bounds, and decodes only a small source-band point window. A class code is returned only if the coordinate is inside a raster footprint. No class legend or acquisition date is bundled, so JalDrishti does not translate the raw code into an invented land-cover label or infer a season. The `landsat.tif` and `sentinel.tif` assets are not assumed to share WorldCover band semantics.
 
-**Sources:** MoEFCC ESZ Notifications, Forest (Conservation) Act 1980, Wetlands (Conservation and Management) Rules 2017, CRZ Notification 2018, Maharashtra State Wetland Authority, Maharashtra Forest Department.
-
-Each polygon carries:
-
-- Layer type: `esz` | `forest` | `wetland` | `crz`
-- Name, category, state
-- GeoJSON Polygon geometry (EPSG:4326 / WGS84)
-- Source, source date, evidence status
-
-**Covered polygons (Maharashtra region):** Sanjay Gandhi NP ESZ, Tungareshwar WLS ESZ, Karnala Bird Sanctuary ESZ, Matheran ESZ, Tungareshwar RF, Bhimgad RF, Matheran Forest Block, Thane Creek Flamingo Sanctuary, Mahim Creek Mangroves, Vasai Creek Mangroves, Panvel Creek Mangroves, Mumbai West Coast CRZ, Navi Mumbai East Coast CRZ, Uran Coast CRZ.
+### Ecological GIS fixtures
 
 **File:** `src/lib/data/ecological-zones.ts`
 
-### Power
+The existing 14 Maharashtra-region ESZ/forest/wetland/CRZ polygons remain hand-drawn screening fixtures with source metadata and are explicitly `PROXY`. They have not been replaced by a live Bhuvan feed.
 
-Power connection timeline is **UNKNOWN** in the MVP. No live DISCOM / CEA API is integrated. The system explicitly reports `UNKNOWN` rather than fabricating a timeline.
+### Live providers
+
+- **Nominatim / OpenStreetMap:** direct reverse geocoding for district/state/locality/pincode; cached, rate-limited, attributed, and configurable.
+- **Open-Meteo Forecast:** modelled current weather, precipitation, ET0, evapotranspiration, soil moisture, solar radiation, wind, and seven-day forecast.
+- **Open-Meteo Air Quality:** CAMS PM2.5/PM10, gases, dust, UV, and model AQI.
+- **Open-Meteo Flood / GloFAS:** daily river-discharge proxy.
+
+These are not regulatory station measurements. See [`docs/DATA_INTEGRATION.md`](docs/DATA_INTEGRATION.md) for cache windows, attribution, policy limits, and source caveats.
 
 ---
 
@@ -789,11 +813,27 @@ All endpoints are relative to the app root (e.g. `http://localhost:3000`).
 | `GET`  | `/api/gis`         | Get all ecological layers as a single GeoJSON FeatureCollection. Optional `?layer=esz\                   | forest\ | wetland\ | crz` to filter. |
 | `GET`  | `/api/gis/[layer]` | Get a single layer as a GeoJSON FeatureCollection. `layer` must be `esz`, `forest`, `wetland`, or `crz`. |         |          |                 |
 
+### Location, live environment, and bundled datasets
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/datasets` | Parse and summarize all bundled CSV/GeoTIFF indexes; useful as a deployment health check. |
+| `GET` | `/api/geocode?lat=&lng=` | Reverse-geocode with Nominatim and perform state-constrained groundwater/rainfall district lookups. `lon` is accepted as an alias for `lng`. |
+| `GET` | `/api/climate?lat=&lng=` | Return current modelled weather, ET0/evapotranspiration, soil moisture, radiation, wind, and seven-day forecast from Open-Meteo. |
+| `GET` | `/api/environment?lat=&lng=` | Aggregate Open-Meteo weather, CAMS air quality, and GloFAS river discharge; provider failures are reported as partial results. |
+| `GET` | `/api/power-plants?lat=&lng=&topN=5` | Return the nearest coordinate-bearing plants from the bundled GPPD derivative (`topN` 1–20). |
+| `GET` | `/api/land-cover?lat=&lng=` | Return a WorldCover class-code sample only when the point is inside a bundled raster footprint. |
+| `GET` | `/api/rainfall-history?subdivision=&startYear=&endYear=` | Return an exact IMD meteorological-subdivision historical series. No fuzzy district-to-subdivision match is attempted. |
+
+Project, analysis, scenario, and explanation routes require the anonymous HttpOnly `jaldrishti_owner` browser cookie created when the first project is saved. This isolates projects in the prototype; it is not a substitute for production user authentication.
+
+> Public Nominatim use is deliberately restricted to direct, user-triggered reverse geocoding. The implementation enforces a process-level 1.1-second request spacing, a bounded queue, India-region validation, per-client limits, caching, an identifying User-Agent, OpenStreetMap attribution, and a configurable base URL. Multi-instance deployments still need shared rate limiting/cache infrastructure or a self-hosted instance. Read the [Nominatim policy notes](docs/DATA_INTEGRATION.md#nominatim-public-service-requirements) before enabling public traffic.
+
 ### AI explanation
 
 | Method |      Path      |                                                                                                                                                                    Description                                                                                                                                                                     |
 | ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST` | `/api/explain` | Generate a plain-language explanation of an analysis. Body: `{ analysis: <AnalysisResult JSON> }`. Returns `{ explanation, prompt }`. The LLM receives the structured JSON and returns Markdown with a plain-language explanation, evidence summary, and suggested follow-up questions. **It never decides feasibility and never invents values.** |
+| `POST` | `/api/explain` | Generate a plain-language explanation of an analysis. Body: `{ analysis: <AnalysisResult JSON> }`. Returns `{ explanation }`; the prompt is not echoed to the client. The LLM receives the structured JSON and returns Markdown with a plain-language explanation, evidence summary, and suggested follow-up questions. **It never decides feasibility and never invents values.** |
 
 ### Analysis result JSON structure
 
@@ -807,62 +847,70 @@ All endpoints are relative to the app root (e.g. `http://localhost:3000`).
     "pointWkt": "POINT(73.0856 19.0418)",
     "crs": "EPSG:4326 (WGS84)"
   },
+  "siteData": {
+    "location": {
+      "data": {
+        "displayName": "Panvel, Panvel Subdistrict, Raigad, Maharashtra, India",
+        "district": "Raigad",
+        "state": "Maharashtra",
+        "pincode": "401206",
+        "attribution": { "label": "© OpenStreetMap contributors" }
+      },
+      "provider": "Nominatim / OpenStreetMap",
+      "retrievedAt": "2026-09-25T14:14:49.626Z",
+      "cacheStatus": "HIT"
+    },
+    "climate": {
+      "data": {
+        "current": { "temperatureC": 27.9, "precipitationMm": 0 },
+        "sevenDayWaterBalanceMm": { "precipitation": 16.9, "referenceEt0": 28.08 }
+      },
+      "provider": "Open-Meteo Weather Forecast API",
+      "cacheStatus": "MISS"
+    },
+    "nearbyPowerPlants": [/* GPPD-derived inventory; not grid capacity */],
+    "landCover": { "available": false, "reason": "OUTSIDE_ALL_RASTER_FOOTPRINTS" },
+    "failures": []
+  },
   "waterDemand": {
-    "facilityEnergyKwhPerDay": 3360000,
+    "facilityEnergyMwhPerDay": 3360,
     "waterKlPerDay": 5040,
     "waterMcmPerYear": 1.84,
     "wueUsed": 1.5,
-    "wueSource": "ASHRAE TC9.9 typical for water-cooled cooling tower",
     "provenance": { "source": "...", "sourceDate": "...", "evidenceStatus": "VERIFIED" }
   },
   "groundwater": {
-    "block": "Taloja",
+    "datasetType": "DISTRICT_CSV",
+    "matchQuality": "EXACT_STATE_AND_DISTRICT",
+    "block": null,
     "district": "Raigad",
     "state": "Maharashtra",
-    "category": "Critical",
-    "stage": 112.6,
-    "tds": 1180,
-    "preMonsoon": 8.9,
-    "postMonsoon": 6.4,
-    "distanceKm": 0.5,
-    "provenance": { "source": "CGWB ...", "sourceDate": "2023-04", "evidenceStatus": "VERIFIED" }
+    "category": "Safe",
+    "stage": 17,
+    "assessmentUnitVerified": false,
+    "resources": { "totalAnnualRecharge": 39435.22, "totalCurrentExtraction": 6362.23 },
+    "provenance": { "source": "Bundled India groundwater district resource CSV", "evidenceStatus": "PROXY" }
   },
   "rainfall": {
-    "station": "Taloja (MIDC)",
-    "annualNormal": 2380,
-    "monsoonNormal": 2120,
-    "distanceKm": 0.3,
-    "timeseries": [{ "year": 2014, "annual": 2098 }, /* ... */],
-    "provenance": { "source": "IMD ...", "sourceDate": "2023-12", "evidenceStatus": "PROXY" }
+    "datasetType": "DISTRICT_CSV",
+    "station": "Raigad district aggregate",
+    "annualRainfallMm": 3278.9,
+    "monsoonRainfallMm": 3117.7,
+    "period": "Not supplied by source file",
+    "timeseries": [],
+    "provenance": { "source": "Bundled IMD-style district rainfall CSV", "evidenceStatus": "PROXY" }
   },
-  "ecology": {
-    "esz":     { "overlap": false, "nearestDistanceKm": 12.4, "intersectedPolygons": [], "rule": { /* ... */ } },
-    "forest":  { "overlap": false, "nearestDistanceKm": 8.1,  "intersectedPolygons": [], "rule": { /* ... */ } },
-    "wetland": { "overlap": true,  "nearestDistanceKm": 0,    "intersectedPolygons": [{ "name": "Panvel Creek Mangroves" }], "rule": { /* ... */ } },
-    "crz":     { "overlap": false, "nearestDistanceKm": 5.2,  "intersectedPolygons": [], "rule": { /* ... */ } }
+  "ecology": { "esz": { "overlap": false, "evidenceStatus": "PROXY", "rule": { /* ... */ } } },
+  "regulatory": { "cgwa": { "outcome": "VERIFICATION REQUIRED", "hardConstraint": false } },
+  "power": {
+    "timeline": "UNKNOWN",
+    "nearbyPowerPlants": [/* ... */],
+    "provenance": { "evidenceStatus": "PROXY" }
   },
-  "regulatory": {
-    "cgwa": { "outcome": "FEASIBLE WITH CONDITIONS", "reasons": [...], "hardConstraint": false, "provenance": {...} },
-    "ec":   { "outcome": "NOT TRIGGERED",            "reasons": [...], "hardConstraint": false, "provenance": {...} },
-    "spcb": { "outcome": "CONSENT TO ESTABLISH REQUIRED", "reasons": [...], "hardConstraint": false, "provenance": {...} }
-  },
-  "power": { "timeline": "UNKNOWN", "substation": null, "provenance": { "evidenceStatus": "UNKNOWN" } },
-  "constraints": [ /* all constraint items with kind: hard | soft | info */ ],
-  "evidenceGaps": [ /* critical missing fields that block a confident decision */ ],
-  "classification": {
-    "classification": "High Constraint / Further Assessment Required",
-    "reasons": ["[HARD] WETLAND overlap: WETLAND OVERLAP DETECTED", /* ... */],
-    "hardConstraints": [...],
-    "softConstraints": [...],
-    "evidenceGaps": [...],
-    "trace": [
-      { "step": "1. Hard constraint scan",     "result": "1 hard constraint(s) found" },
-      { "step": "2. Critical evidence scan",  "result": "0 critical gap(s) found" },
-      { "step": "3. Soft constraint scan",    "result": "2 soft constraint(s) found" },
-      { "step": "4. Decision",                "result": "HIGH CONSTRAINT" }
-    ]
-  },
-  "generatedAt": "2026-09-24T12:34:56.789Z"
+  "constraints": [/* hard | soft | info */],
+  "evidenceGaps": [/* critical missing fields */],
+  "classification": { "classification": "Data Insufficient", "reasons": [/* ... */] },
+  "generatedAt": "2026-09-25T14:15:00.000Z"
 }
 ```
 
@@ -886,14 +934,14 @@ The classification is a deterministic function of hard constraints, evidence gap
 |                     Category                      |                                         When                                         |  Color   |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------ | -------- |
 | **Feasible**                                      | No hard constraints, no critical evidence gaps, no soft constraints                  | 🟢 Green  |
-| **Feasible with Conditions**                      | Soft constraints present (e.g. CGWA Critical block requires rainwater harvesting)    | 🟡 Yellow |
-| **Data Insufficient**                             | A critical evidence field is missing (e.g. groundwater block category is UNKNOWN)    | 🟠 Orange |
-| **High Constraint / Further Assessment Required** | A hard constraint is present (e.g. wetland overlap, Over-Exploited + no alternative) | 🔴 Red    |
+| **Feasible with Conditions**                      | Soft constraints present (e.g. proxy ecology geometry, CGWA verification required)   | 🟡 Yellow |
+| **Data Insufficient**                             | A critical evidence field is missing or unverified (e.g. no groundwater assessment unit) | 🟠 Orange |
+| **High Constraint / Further Assessment Required** | A verified hard constraint is present (e.g. authoritative wetland overlap) | 🔴 Red    |
 
 ### Hard constraints vs risk indicators
 
-- **Hard constraints** block the project outright — e.g. ecological polygon overlap, Over-Exploited groundwater + no alternative source, Saline block + groundwater source.
-- **Risk indicators (soft constraints)** require mitigation but do not block — e.g. Critical/Semi-Critical groundwater, EC applicable (process requirement), SPCB consent required.
+- **Hard constraints** block the project outright only when supported by verified/authoritative evidence — e.g. a verified ecological overlap or a verified groundwater constraint with no alternative.
+- **Risk indicators (soft constraints)** require mitigation or verification but do not block — e.g. proxy ecology geometry, district groundwater records, Critical/Semi-Critical groundwater, EC applicability, and SPCB consent.
 
 The exact rule precedence is implemented in `src/lib/engines/classification.ts` and is fully auditable.
 
@@ -937,16 +985,18 @@ The AI receives the validated structured JSON — never raw database access.
 
 JalDrishti is a **screening prototype**, not a regulatory approval. The following are known limitations:
 
-|        Area         |                     Current state                     |                        Full-system goal                        |
-| ------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
-| Groundwater         | 16 CGWB blocks (MH/TG/TN), nearest-centroid lookup    | All-India block polygons, live CGWB telemetry                  |
-| Rainfall            | 8 IMD stations, nearest-station lookup                | IMD gridded API, seasonal variability                          |
-| Ecological layers   | 14 polygons (Maharashtra region)                      | Full national MoEFCC / Bhuvan layers                           |
-| Power               | UNKNOWN (no live DISCOM API)                          | State DISCOM / CEA API integration                             |
-| Surface water       | Not integrated (no India-WRIS live feed)              | India-WRIS / CWC live integration                              |
-| SPCB                | Generic CTE/CTO requirement (no state-specific rules) | Multi-state SPCB rule sets                                     |
-| Climate projections | Not included                                          | Seasonal rainfall variability, flood-zone, climate projections |
-| Block lookup        | Nearest centroid (PROXY if >5km from seeded centroid) | True `ST_Within` against block boundary polygons               |
+|        Area         |                              Current state                               |                        Full-system goal                        |
+| ------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Groundwater         | All-India district resource CSV (`PROXY`); mock blocks remain fallback | Authoritative CGWB assessment-unit/block polygons and telemetry |
+| Rainfall            | District monthly aggregate + exact IMD-subdivision history + forecast | Authoritative IMD station/grid crosswalk and calibrated normals |
+| Ecological layers   | 14 curated Maharashtra-region polygons; no live Bhuvan layer           | Full national MoEFCC / Bhuvan layers                           |
+| Power               | Nearby GPPD-derived plant inventory; connection timeline remains unknown | State DISCOM / CEA capacity and connection APIs               |
+| Surface water       | Open-Meteo/GloFAS 5 km discharge proxy; no India-WRIS gauge integration | India-WRIS / CWC gauge and basin integration                  |
+| Air quality         | CAMS model snapshot; not a regulatory Indian station                   | CPCB/State-board validated station feed                        |
+| Land cover          | 40 locations × 3 WorldCover rasters; raw code only, no bundled legend | Authoritative class legend, dates, and national coverage         |
+| SPCB                | Generic CTE/CTO requirement (no state-specific rules)                  | Multi-state SPCB rule sets                                     |
+| Climate projections | Not included; current forecast is not a projection                     | Seasonal variability and scenario-based climate projections    |
+| Block lookup        | District resource match, not true `ST_Within`                           | True point-in-block/assessment-unit lookup                     |
 
 Where data is unavailable, JalDrishti says **UNKNOWN** — it never silently fills in a value.
 

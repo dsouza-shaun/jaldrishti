@@ -1,13 +1,15 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+  prisma: PrismaClient | undefined;
+};
 
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
-  })
+    // Query logs can contain project names, notes, and coordinates. Keep only
+    // non-sensitive diagnostics in production and development.
+    log: ["error"],
+  });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+globalForPrisma.prisma = db;

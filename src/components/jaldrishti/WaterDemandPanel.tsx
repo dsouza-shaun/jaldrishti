@@ -7,7 +7,15 @@ import { Droplets, Zap, Calendar } from "lucide-react";
 export function WaterDemandPanel() {
   const { analysis } = useJalDrishti();
   if (!analysis) return null;
-  const w = analysis.waterDemand as Record<string, number | string>;
+  const w = analysis.waterDemand as unknown as {
+    waterKlPerDay: number;
+    waterMcmPerYear: number;
+    facilityEnergyMwhPerDay: number;
+    waterMld: number;
+    wueUsed: number;
+    wueSource: string;
+    provenance: { source: string; sourceDate: string; evidenceStatus: string };
+  };
 
   const stats = [
     { label: "Daily water demand", value: fmt(w.waterKlPerDay), unit: "kL/day", icon: <Droplets className="w-4 h-4" />, color: "var(--accent-red)" },
@@ -51,7 +59,7 @@ export function WaterDemandPanel() {
 
       <div className="mt-3 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
         <strong>WUE used:</strong> {String(w.wueUsed)} L/kWh · {String(w.wueSource)}<br />
-        <strong>Source:</strong> {(w.provenance as { source: string; sourceDate: string })?.source} · {(w.provenance as { evidenceStatus: string })?.evidenceStatus}
+        <strong>Source:</strong> {w.provenance.source} · {w.provenance.evidenceStatus}
       </div>
     </motion.section>
   );

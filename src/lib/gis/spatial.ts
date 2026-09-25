@@ -18,12 +18,26 @@
  */
 
 import * as turf from "@turf/turf";
-import type { Feature, FeatureCollection, Polygon, MultiPolygon, Point } from "geojson";
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiLineString,
+  MultiPolygon,
+  Point,
+  Polygon,
+} from "geojson";
 
 export interface SpatialCheckResult {
   overlap: boolean;
   nearestDistanceKm: number;
-  intersectedPolygons: { id: string; name: string; category?: string }[];
+  evidenceStatus: "VERIFIED" | "PROXY" | "UNKNOWN";
+  intersectedPolygons: {
+    id: string;
+    name: string;
+    category?: string;
+    evidenceStatus?: "VERIFIED" | "PROXY" | "UNKNOWN";
+  }[];
 }
 
 /**
@@ -38,6 +52,9 @@ export function checkPointAgainstLayer(
 
   const intersected: SpatialCheckResult["intersectedPolygons"] = [];
   let nearest = Number.POSITIVE_INFINITY;
+  let sawProxy = false;
+  let sawUnknown = false;
+  let featureCount = 0;
 
   for (const feature of layer.features) {
     const name =
@@ -46,24 +63,58 @@ export function checkPointAgainstLayer(
       "Unnamed";
 
     const category = (feature.properties as { category?: string } | null)?.category;
+    const featureEvidence = (feature.properties as {
+      evidenceStatus?: "VERIFIED" | "PROXY" | "UNKNOWN";
+    } | null)?.evidenceStatus;
+    featureCount += 1;
+    if (featureEvidence === "PROXY") {
+      sawProxy = true;
+    } else if (featureEvidence !== "VERIFIED") {
+      sawUnknown = true;
+    }
 
     // overlap = point inside any polygon of a MultiPolygon, or inside the Polygon
     const inside = turf.booleanPointInPolygon(point, feature as Feature<Polygon | MultiPolygon>);
     if (inside) {
-      intersected.push({ id: String(feature.id ?? name), name, category });
+      intersected.push({
+        id: String(feature.id ?? name),
+        name,
+        category,
+        evidenceStatus: featureEvidence,
+      });
     }
 
     // distance to polygon boundary (km). turf.distance to feature centroid is
     // not what we want - we want the nearest edge. Use turf.pointToLineDistance
     // against the polygon's boundary line.
-    const boundary = turf.polygonToLine(feature as Feature<Polygon | MultiPolygon>);
-    const dist = turf.pointToLineDistance(point, boundary as Feature, { units: "kilometers" });
+    const boundary = turf.polygonToLine(
+      feature as Feature<Polygon | MultiPolygon>,
+    ) as Feature<LineString | MultiLineString>;
+    const lines: Array<LineString | Feature<LineString>> =
+      boundary.geometry.type === "MultiLineString"
+        ? boundary.geometry.coordinates.map((coordinates) =>
+            turf.lineString(coordinates),
+          )
+        : [boundary.geometry];
+    const dist = Math.min(
+      ...lines.map((line) =>
+        turf.pointToLineDistance(point, line, { units: "kilometers" }),
+      ),
+    );
     if (dist < nearest) nearest = dist;
   }
 
   return {
     overlap: intersected.length > 0,
     nearestDistanceKm: Number.isFinite(nearest) ? nearest : 0,
+    evidenceStatus:
+      featureCount === 0
+        ? "UNKNOWN"
+        : sawProxy
+          ? "PROXY"
+          : sawUnknown
+            ? "UNKNOWN"
+            : "VERIFIED",
     intersectedPolygons: intersected,
   };
 }

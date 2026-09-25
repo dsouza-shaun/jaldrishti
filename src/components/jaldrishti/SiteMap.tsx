@@ -5,7 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { motion } from "framer-motion";
-import { Layers, Maximize2, MapPin } from "lucide-react";
+import { Layers, MapPin } from "lucide-react";
 
 // Layer colour scheme - each ecological layer gets a distinct, hard-edged colour
 const LAYER_COLORS: Record<string, { fill: string; line: string; label: string }> = {
@@ -30,15 +30,18 @@ export function SiteMap() {
   const [loaded, setLoaded] = useState(false);
   const [toggles, setToggles] = useState<LayerToggle>({ esz: true, forest: true, wetland: true, crz: true });
   const { form, analysis, selectedPolygon, setSelectedPolygon } = useJalDrishti();
+  const mapLatitude = analysis?.site.latitude ?? form.latitude;
+  const mapLongitude = analysis?.site.longitude ?? form.longitude;
+  const mapProjectName = analysis?.projectName ?? form.projectName;
 
   // ---- init map once ----
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
-    // Configure worker URL. In Next.js bundling, the auto-detected worker
-    // path fails. We use the CDN-hosted worker matching our installed version.
+    // Keep the worker versioned with the installed MapLibre package. The
+    // public copy avoids a runtime third-party dependency and CDN drift.
     try {
-      const workerUrl = "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-worker.mjs";
+      const workerUrl = "/maplibre-gl-worker.mjs";
       const ml = maplibregl as unknown as { setWorkerUrl?: (url: string) => void };
       if (typeof ml.setWorkerUrl === "function") {
         ml.setWorkerUrl(workerUrl);
@@ -69,9 +72,9 @@ export function SiteMap() {
           },
         ],
       },
-      center: [form.longitude, form.latitude],
+      center: [mapLongitude, mapLatitude],
       zoom: 11,
-      attributionControl: true,
+      attributionControl: {},
       hash: false,
     });
 
@@ -157,15 +160,25 @@ export function SiteMap() {
             };
             setSelectedPolygon(props);
             const coords = (f.geometry as { coordinates: number[][][] }).coordinates[0][0];
+            const popupContent = document.createElement("div");
+            const title = document.createElement("strong");
+            title.textContent = props.name;
+            const details = document.createElement("div");
+            details.style.fontSize = "11px";
+            details.textContent = `${props.layer.toUpperCase()} · ${props.category ?? ""}`;
+            const source = document.createElement("div");
+            source.style.fontSize = "10px";
+            source.textContent = `Source: ${props.source ?? ""}`;
+            const updated = document.createElement("div");
+            updated.style.fontSize = "10px";
+            updated.textContent = `Updated: ${props.sourceDate ?? ""}`;
+            const evidence = document.createElement("div");
+            evidence.style.fontSize = "10px";
+            evidence.textContent = `Evidence: ${props.evidenceStatus ?? ""}`;
+            popupContent.append(title, details, source, updated, evidence);
             new maplibregl.Popup()
               .setLngLat(coords as [number, number])
-              .setHTML(
-                `<strong>${props.name}</strong><br/>` +
-                `<span style="font-size:11px">${props.layer.toUpperCase()} · ${props.category ?? ""}</span><br/>` +
-                `<span style="font-size:10px">Source: ${props.source ?? ""}</span><br/>` +
-                `<span style="font-size:10px">Updated: ${props.sourceDate ?? ""}</span><br/>` +
-                `<span style="font-size:10px">Evidence: ${props.evidenceStatus ?? ""}</span>`,
-              )
+              .setDOMContent(popupContent)
               .addTo(map);
           });
 
@@ -195,19 +208,25 @@ export function SiteMap() {
       box-shadow: 3px 3px 0 0 #000;
       cursor: pointer;
     `;
+    const popupContent = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = "Proposed Site";
+    const coordinates = document.createElement("div");
+    coordinates.style.fontSize = "11px";
+    coordinates.style.fontFamily = "monospace";
+    coordinates.textContent = `${mapLatitude.toFixed(4)}, ${mapLongitude.toFixed(4)}`;
+    const project = document.createElement("div");
+    project.style.fontSize = "10px";
+    project.textContent = mapProjectName;
+    popupContent.append(title, coordinates, project);
+
     new maplibregl.Marker({ element: el })
-      .setLngLat([form.longitude, form.latitude])
-      .setPopup(
-        new maplibregl.Popup().setHTML(
-          `<strong>Proposed Site</strong><br/>` +
-          `<span style="font-size:11px;font-family:monospace">${form.latitude.toFixed(4)}, ${form.longitude.toFixed(4)}</span><br/>` +
-          `<span style="font-size:10px">${form.projectName}</span>`,
-        ),
-      )
+      .setLngLat([mapLongitude, mapLatitude])
+      .setPopup(new maplibregl.Popup().setDOMContent(popupContent))
       .addTo(map);
 
-    map.flyTo({ center: [form.longitude, form.latitude], zoom: 12, duration: 1200 });
-  }, [loaded, form.latitude, form.longitude, form.projectName]);
+    map.flyTo({ center: [mapLongitude, mapLatitude], zoom: 12, duration: 1200 });
+  }, [loaded, mapLatitude, mapLongitude, mapProjectName]);
 
   // ---- apply layer toggles ----
   useEffect(() => {
@@ -258,7 +277,7 @@ export function SiteMap() {
 
         {/* Coordinate readout */}
         <div className="absolute bottom-2 left-2 bg-[var(--paper)] border-[3px] border-black px-2 py-1 text-[10px] font-mono font-bold shadow-[3px_3px_0_0_#000]">
-          <MapPin className="w-3 h-3 inline" /> {form.latitude.toFixed(4)}, {form.longitude.toFixed(4)}
+          <MapPin className="w-3 h-3 inline" /> {mapLatitude.toFixed(4)}, {mapLongitude.toFixed(4)}
         </div>
 
         {/* Selected polygon info */}

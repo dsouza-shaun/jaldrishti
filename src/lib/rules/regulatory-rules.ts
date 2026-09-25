@@ -49,7 +49,15 @@ export interface RuleOutcome {
 // ---- CGWA groundwater / NOC rule ----------------------------------------------
 
 export interface CgwaInput {
-  groundwaterCategory: "Safe" | "Semi-Critical" | "Critical" | "Over-Exploited" | "Saline" | "UNKNOWN";
+  groundwaterCategory:
+    | "Safe"
+    | "Semi-Critical"
+    | "Critical"
+    | "Over-Exploited"
+    | "Saline"
+    | "UNKNOWN";
+  groundwaterEvidenceStatus: EvidenceStatus;
+  assessmentUnitVerified: boolean;
   proposedWaterSource: string;
   alternativeWaterSource?: string | null;
   itLoad: number; // MW
@@ -77,6 +85,20 @@ export function evaluateCgwaRule(input: CgwaInput): RuleOutcome {
   const usingGroundwater =
     input.proposedWaterSource.toLowerCase().includes("ground") ||
     input.proposedWaterSource.toLowerCase() === "borewell";
+
+  if (usingGroundwater && !input.assessmentUnitVerified) {
+    return {
+      outcome: "VERIFICATION REQUIRED",
+      reasons: [
+        `Available groundwater evidence is ${input.groundwaterEvidenceStatus} and does not verify the applicable CGWB block/assessment unit.`,
+        `District-level screening category: ${input.groundwaterCategory}.`,
+        "A district aggregate or nearest-centroid fallback cannot by itself establish CGWA NOC eligibility.",
+        "Confirm the current assessment unit and category on the official CGWA/CGWB source before relying on this screen.",
+      ],
+      hardConstraint: false,
+      provenance,
+    };
+  }
 
   if (input.groundwaterCategory === "Over-Exploited" && usingGroundwater) {
     if (!input.alternativeWaterSource) {
@@ -212,6 +234,7 @@ export interface EcologicalInput {
   overlap: boolean;
   nearestDistanceKm: number; // distance to nearest polygon edge, 0 if overlapping
   polygonName?: string;
+  evidenceStatus: "VERIFIED" | "PROXY" | "UNKNOWN";
 }
 
 export function evaluateEcologicalRule(input: EcologicalInput): RuleOutcome {
@@ -242,19 +265,34 @@ export function evaluateEcologicalRule(input: EcologicalInput): RuleOutcome {
   const provenance: Provenance = {
     source: cfg.source,
     sourceDate: cfg.sourceDate,
-    evidenceStatus: "VERIFIED",
+    // The regulation text is cited, but the bundled screening geometry may
+    // only be a proxy. Carry the evidence status of the spatial result so the
+    // UI never presents a fixture overlap as an authoritative boundary.
+    evidenceStatus: input.evidenceStatus,
   };
 
-  if (input.overlap) {
+  if (input.overlap && input.evidenceStatus === "VERIFIED") {
     return {
       outcome: `${input.layer.toUpperCase()} OVERLAP DETECTED`,
       reasons: [
         `Proposed site intersects a notified ${input.layer.toUpperCase()} polygon${input.polygonName ? ` (${input.polygonName})` : ""}.`,
         cfg.restriction,
       ],
-      // ESZ/forest/wetland/CRZ overlaps are treated as hard constraints
-      // (project must either re-site or pursue clearance - cannot be ignored).
       hardConstraint: true,
+      provenance,
+    };
+  }
+
+  if (input.overlap) {
+    return {
+      outcome: `${input.layer.toUpperCase()} PROXY OVERLAP — VERIFICATION REQUIRED`,
+      reasons: [
+        `The bundled screening geometry intersects a ${input.layer.toUpperCase()} polygon${input.polygonName ? ` (${input.polygonName})` : ""}.`,
+        `Geometry evidence is ${input.evidenceStatus}; it is not an authoritative notified-boundary determination.`,
+        cfg.restriction,
+        "Obtain and check the current official boundary before treating this as a hard constraint.",
+      ],
+      hardConstraint: false,
       provenance,
     };
   }
@@ -263,13 +301,18 @@ export function evaluateEcologicalRule(input: EcologicalInput): RuleOutcome {
   // Buffer distances must come from the specific notification; the rule does
   // not assume a default.
   return {
-    outcome: "NO OVERLAP",
+    outcome:
+      input.evidenceStatus === "VERIFIED"
+        ? "NO OVERLAP"
+        : `NO OVERLAP IN ${input.evidenceStatus} SCREENING FIXTURE`,
     reasons: [
-      `No ${input.layer.toUpperCase()} polygon overlap at the proposed site.`,
+      `No ${input.layer.toUpperCase()} polygon overlap at the proposed site in the bundled screening data.`,
       input.nearestDistanceKm > 0
-        ? `Nearest ${input.layer.toUpperCase()} boundary is ${input.nearestDistanceKm.toFixed(2)} km away.`
+        ? `Nearest ${input.layer.toUpperCase()} fixture boundary is ${input.nearestDistanceKm.toFixed(2)} km away.`
         : `No ${input.layer.toUpperCase()} polygons found within the configured study area.`,
-      "Regulatory buffer not configured - confirm applicable buffer from the site-specific notification.",
+      input.evidenceStatus === "VERIFIED"
+        ? "Regulatory buffer not configured - confirm applicable buffer from the site-specific notification."
+        : "This is not a nationwide clearance check; obtain the current official notified boundary and applicable buffer.",
     ],
     hardConstraint: false,
     provenance,
@@ -287,6 +330,18 @@ export function evaluateSpcbRule(input: {
     sourceDate: "1974-03-23",
     evidenceStatus: "VERIFIED",
   };
+
+  if (input.state === "Unknown jurisdiction") {
+    return {
+      outcome: "STATE RULE UNKNOWN",
+      reasons: [
+        "The state pollution control board jurisdiction could not be resolved.",
+        "Confirm the applicable state SPCB requirements manually.",
+      ],
+      hardConstraint: false,
+      provenance,
+    };
+  }
 
   return {
     outcome: "CONSENT TO ESTABLISH REQUIRED",
@@ -306,7 +361,7 @@ export const REGULATORY_RULES_CATALOG = [
     domain: "cgwa",
     title: "CGWA Groundwater NOC Eligibility",
     description:
-      "Determines NOC eligibility based on block category and proposed water source. Over-Exploited + no alternative = hard constraint.",
+      "Determines NOC screening from groundwater category and water source. District/fallback evidence is returned as verification-required, not a hard block decision.",
   },
   {
     ruleCode: "EC-8B-2006",

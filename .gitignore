@@ -1,5 +1,14 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Local secrets and runtime databases
+.env
+.env.*
+!.env.example
+db/
+*.db
+*.sqlite
+*.sqlite3
+
 # dependencies
 node_modules
 /.pnp

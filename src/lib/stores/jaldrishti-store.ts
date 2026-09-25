@@ -23,6 +23,14 @@ export interface AnalysisResult {
   projectId: string;
   projectName: string;
   site: { latitude: number; longitude: number; pointWkt: string; crs: string };
+  siteData: {
+    location: Record<string, unknown> | null;
+    climate: Record<string, unknown> | null;
+    nearbyPowerPlants: Array<Record<string, unknown>>;
+    landCover: Record<string, unknown> | null;
+    failures: Array<{ provider: string; message: string }>;
+    reusedAt?: string | null;
+  };
   waterDemand: Record<string, number | string | object>;
   groundwater: Record<string, unknown>;
   rainfall: Record<string, unknown>;

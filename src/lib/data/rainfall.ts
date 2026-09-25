@@ -1,12 +1,14 @@
+import { haversineDistanceKm } from "@/lib/data/geo";
+
 /**
  * IMD Rainfall Station dataset
  * --------------------------------------------------------------
  * Annual and seasonal rainfall normals sourced from IMD "District-Wise
  * Rainfall Statistics" and IMD Climate Research & Services, Pune.
  *
- * Used by the rainfall evidence layer. Each station carries the real IMD
- * published normal (mm) and a 10-year time series representative of the
- * IMD-recorded interannual variability for that station.
+ * Retained as fallback-only reference seeds. The annual/seasonal values are
+ * labelled IMD-derived, while the 10-year series is representative rather
+ * than a bundled station observation. Real district CSV data takes priority.
  */
 
 export interface RainfallStationSeed {
@@ -23,7 +25,7 @@ export interface RainfallStationSeed {
   timeseries: { year: number; annual: number }[];
   source: string;
   sourceDate: string;
-  evidenceStatus: "VERIFIED" | "PROXY" | "UNKNOWN";
+  evidenceStatus: "PROXY" | "UNKNOWN";
 }
 
 export const RAINFALL_STATIONS: RainfallStationSeed[] = [
@@ -52,7 +54,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     stationName: "Mumbai (Colaba)",
@@ -79,7 +81,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     stationName: "Taloja (MIDC)",
@@ -133,7 +135,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     stationName: "Nashik",
@@ -160,7 +162,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     stationName: "Nagpur",
@@ -187,7 +189,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     stationName: "Hyderabad",
@@ -214,7 +216,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     stationName: "Chennai",
@@ -241,7 +243,7 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
     ],
     source: "IMD District-Wise Rainfall Statistics",
     sourceDate: "2023-12",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
 ];
 
@@ -251,17 +253,24 @@ export const RAINFALL_STATIONS: RainfallStationSeed[] = [
 export function nearestRainfallStation(
   lat: number,
   lng: number,
-): { station: RainfallStationSeed; distanceKm: number; evidenceStatus: "VERIFIED" | "PROXY" } | null {
+): { station: RainfallStationSeed; distanceKm: number; evidenceStatus: "PROXY" } | null {
   let best: { station: RainfallStationSeed; distanceKm: number } | null = null;
-  for (const s of RAINFALL_STATIONS) {
-    const d = Math.hypot(s.latitude - lat, s.longitude - lng) * 111;
-    if (!best || d < best.distanceKm) best = { station: s, distanceKm: d };
+  for (const station of RAINFALL_STATIONS) {
+    const distanceKm = haversineDistanceKm(
+      { latitude: lat, longitude: lng },
+      { latitude: station.latitude, longitude: station.longitude },
+    );
+    if (!best || distanceKm < best.distanceKm) {
+      best = { station, distanceKm };
+    }
   }
-  if (!best) return null;
-  // PROXY if the nearest station is > 25 km away; VERIFIED otherwise.
+  if (!best || best.distanceKm > 50) return null;
+
+  // The station values and synthetic/representative time series are retained
+  // only as a fallback. Nearest-centroid proximity does not verify a station.
   return {
     station: best.station,
-    distanceKm: best.distanceKm,
-    evidenceStatus: best.distanceKm <= 25 ? "VERIFIED" : "PROXY",
+    distanceKm: Number(best.distanceKm.toFixed(2)),
+    evidenceStatus: "PROXY",
   };
 }

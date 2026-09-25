@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { analyze, type AnalyzeInput } from "@/lib/engines/orchestrator";
+import { getOwnerId } from "@/lib/auth/owner";
+import {
+  checkEdgeRateLimit,
+  rateLimitResponse,
+} from "@/lib/api/edge-rate-limit";
+
+export const runtime = "nodejs";
 
 // POST /api/projects/[id]/analyze - run the full analysis pipeline and persist the result.
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rate = checkEdgeRateLimit(req, "analysis", 30, 60 * 60_000);
+  if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
+
+  const ownerId = getOwnerId(req);
+  if (!ownerId) {
+    return NextResponse.json(
+      { error: "Project ownership cookie is missing." },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   try {
     const { id } = await params;
-    const project = await db.project.findUnique({ where: { id } });
+    const project = await db.project.findFirst({ where: { id, ownerId } });
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
@@ -30,7 +48,7 @@ export async function POST(
       notes: project.notes,
     };
 
-    const result = analyze(input);
+    const result = await analyze(input);
 
     // Persist the analysis
     const saved = await db.analysis.create({
@@ -41,20 +59,34 @@ export async function POST(
     });
 
     return NextResponse.json({ analysisId: saved.id, result }, { status: 200 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch (error) {
+    console.error("[analysis]", error);
+    return NextResponse.json(
+      { error: "Unable to complete the analysis." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 
 // GET /api/projects/[id]/analyze - return the most recent analysis for this project.
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rate = checkEdgeRateLimit(req, "analysis", 30, 60 * 60_000);
+  if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
+
+  const ownerId = getOwnerId(req);
+  if (!ownerId) {
+    return NextResponse.json(
+      { error: "Project ownership cookie is missing." },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   try {
     const { id } = await params;
-    const project = await db.project.findUnique({ where: { id } });
+    const project = await db.project.findFirst({ where: { id, ownerId } });
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
@@ -74,8 +106,11 @@ export async function GET(
       generatedAt: latest.createdAt,
       hasAnalysis: true,
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch (error) {
+    console.error("[analysis]", error);
+    return NextResponse.json(
+      { error: "Unable to complete the analysis." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

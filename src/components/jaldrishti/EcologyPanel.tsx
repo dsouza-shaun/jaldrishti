@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Trees, Waves, Mountain, Anchor } from "lucide-react";
+import { Trees, Waves, Mountain, Anchor, Layers } from "lucide-react";
 import { EvidenceBadge } from "./GroundwaterPanel";
 
 const LAYER_META = {
@@ -21,12 +21,23 @@ export function EcologyPanel() {
     {
       overlap: boolean;
       nearestDistanceKm: number;
+      evidenceStatus: string;
       intersectedPolygons: { name: string; category?: string }[];
       rule: { outcome: string; reasons: string[]; hardConstraint: boolean; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
     }
   >;
 
   const layers = Object.keys(LAYER_META) as ("esz" | "forest" | "wetland" | "crz")[];
+  const landCover = analysis.siteData.landCover as unknown as {
+    available: boolean;
+    reason: string;
+    location: string | null;
+    season: string | null;
+    selectedByRequestedSeason: boolean;
+    sample: { dominantClassCode: number | null; legendStatus: string } | null;
+    nearestDatasetDistanceKm: number | null;
+    provenance: { evidenceStatus: string; caveat?: string };
+  } | null;
 
   return (
     <motion.section
@@ -43,6 +54,7 @@ export function EcologyPanel() {
         {layers.map((k) => {
           const e = eco[k];
           const meta = LAYER_META[k];
+          const proxyEvidence = e.evidenceStatus !== "VERIFIED";
           return (
             <div
               key={k}
@@ -63,7 +75,13 @@ export function EcologyPanel() {
                         color: e.overlap ? "#fff" : "#000",
                       }}
                     >
-                      {e.overlap ? "OVERLAP" : "CLEAR"}
+                      {e.overlap
+                        ? proxyEvidence
+                          ? "PROXY OVERLAP"
+                          : "OVERLAP"
+                        : proxyEvidence
+                          ? "NO OVERLAP (PROXY)"
+                          : "CLEAR"}
                     </span>
                     {!e.overlap && (
                       <span className="text-[10px] font-mono">
@@ -93,6 +111,42 @@ export function EcologyPanel() {
           );
         })}
       </div>
+
+      {landCover && (
+        <div className="mt-3 border-[2px] border-black bg-[var(--paper)] p-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-extrabold text-xs uppercase">
+              <Layers className="w-4 h-4" /> Bundled land-cover raster
+            </div>
+            <EvidenceBadge status={landCover.provenance.evidenceStatus} />
+          </div>
+          {landCover.available ? (
+            <div className="mt-2 text-[10px] font-mono">
+              <div>
+                <strong>Footprint:</strong> {landCover.location} · {landCover.season}
+                {!landCover.selectedByRequestedSeason && " (off-season fallback)"}
+              </div>
+              <div className="mt-1">
+                <strong>Raw class code:</strong>{" "}
+                {landCover.sample?.dominantClassCode ?? "No valid pixel"}
+              </div>
+              <div className="mt-1 text-black/60">
+                Legend not bundled; code is not translated into a class label.
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 text-[10px] font-mono">
+              Point is outside all bundled raster footprints.
+              {landCover.nearestDatasetDistanceKm !== null && (
+                <>
+                  {" "}Nearest raster edge is approximately{" "}
+                  {landCover.nearestDatasetDistanceKm.toFixed(1)} km away.
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </motion.section>
   );
 }

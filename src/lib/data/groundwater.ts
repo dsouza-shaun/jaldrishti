@@ -1,16 +1,20 @@
+import { haversineDistanceKm } from "@/lib/data/geo";
+
 /**
  * CGWB Groundwater Block dataset - Maharashtra region
  * --------------------------------------------------------------
- * Values sourced from CGWB "Ground Water Year Book - Maharashtra State"
- * (latest published edition). The block names, districts and CGWB category
- * are real; the precise numbers are representative of the published range.
+ * Retained as fallback-only reference seeds based on CGWB year-book ranges.
+ * The block names are useful screening labels, but precise values are
+ * representative and must be treated as PROXY rather than verified records.
  *
  * Where a value is genuinely unknown it is left null (not invented).
  *
  * evidenceStatus:
- *   VERIFIED = we have the source document for this block
- *   PROXY    = the value is derived from a neighbouring block / district avg
- *   UNKNOWN  = no data
+ *   PROXY    = representative fallback selected by nearest centroid
+ *   UNKNOWN  = no nearby fallback record
+ *
+ * The nearest-centroid lookup never emits VERIFIED because it does not perform
+ * a block-polygon containment test and no source documents are bundled.
  */
 
 export interface GroundwaterBlockSeed {
@@ -27,7 +31,7 @@ export interface GroundwaterBlockSeed {
   tds: number | null;             // mg/L
   source: string;
   sourceDate: string;
-  evidenceStatus: "VERIFIED" | "PROXY" | "UNKNOWN";
+  evidenceStatus: "PROXY" | "UNKNOWN";
 }
 
 export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
@@ -46,7 +50,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 620,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -62,7 +66,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 1180,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -78,7 +82,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 1450,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -94,7 +98,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 540,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -110,7 +114,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 690,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -126,7 +130,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 480,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Mumbai Suburban ----
   {
@@ -143,7 +147,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 920,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Pune district ----
   {
@@ -160,7 +164,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 710,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -176,7 +180,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 830,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -192,7 +196,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 590,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   {
     state: "Maharashtra",
@@ -208,7 +212,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 460,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Nashik ----
   {
@@ -225,7 +229,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 670,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Nagpur ----
   {
@@ -242,7 +246,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 880,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Thane ----
   {
@@ -259,7 +263,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 760,
     source: "CGWB Ground Water Year Book Maharashtra 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Telangana (Hyderabad) - included for cross-state comparison ----
   {
@@ -276,7 +280,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 1240,
     source: "CGWB Ground Water Year Book Telangana 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
   // ---- Tamil Nadu (Chennai) ----
   {
@@ -293,7 +297,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
     tds: 1620,
     source: "CGWB Ground Water Year Book Tamil Nadu 2022-23",
     sourceDate: "2023-04",
-    evidenceStatus: "VERIFIED",
+    evidenceStatus: "PROXY",
   },
 ];
 
@@ -308,7 +312,7 @@ export const GROUNDWATER_BLOCKS: GroundwaterBlockSeed[] = [
 export function lookupGroundwaterBlock(lat: number, lng: number): {
   block: GroundwaterBlockSeed;
   distanceKm: number;
-  evidenceStatus: "VERIFIED" | "PROXY" | "UNKNOWN";
+  evidenceStatus: "PROXY" | "UNKNOWN";
 } | null {
   // Simple centroid table for the seeded blocks (lat, lng).
   const CENTROIDS: Record<string, [number, number]> = {
@@ -326,24 +330,31 @@ export function lookupGroundwaterBlock(lat: number, lng: number): {
     "Nashik::Nashik-City": [19.99, 73.79],
     "Nagpur::Nagpur-Urban": [21.15, 79.09],
     "Thane::Bhiwandi": [19.30, 73.05],
-    "Telangana::Hyderabad-Urban": [17.39, 78.49],
-    "Tamil Nadu::Chennai-City": [13.08, 80.27],
+    "Hyderabad::Hyderabad-Urban": [17.39, 78.49],
+    "Chennai::Chennai-City": [13.08, 80.27],
   };
 
   let best: { block: GroundwaterBlockSeed; distanceKm: number } | null = null;
   for (const block of GROUNDWATER_BLOCKS) {
     const key = `${block.district}::${block.blockName}`;
-    const c = CENTROIDS[key];
-    if (!c) continue;
-    const d = Math.hypot(c[0] - lat, c[1] - lng) * 111; // rough km
-    if (!best || d < best.distanceKm) best = { block, distanceKm: d };
+    const centroid = CENTROIDS[key];
+    if (!centroid) continue;
+    const distanceKm = haversineDistanceKm(
+      { latitude: lat, longitude: lng },
+      { latitude: centroid[0], longitude: centroid[1] },
+    );
+    if (!best || distanceKm < best.distanceKm) {
+      best = { block, distanceKm };
+    }
   }
 
-  if (!best) return null;
+  if (!best || best.distanceKm > 50) return null;
 
-  // Anything more than ~25 km from the seeded centroid is PROXY, not VERIFIED.
-  const evidenceStatus: "VERIFIED" | "PROXY" =
-    best.distanceKm <= 5 ? "VERIFIED" : "PROXY";
-
-  return { block: best.block, distanceKm: best.distanceKm, evidenceStatus };
+  // A centroid match is not a block-polygon containment test, and the bundled
+  // values are fallback seeds. Even a very close match remains a proxy.
+  return {
+    block: best.block,
+    distanceKm: Number(best.distanceKm.toFixed(2)),
+    evidenceStatus: "PROXY",
+  };
 }
