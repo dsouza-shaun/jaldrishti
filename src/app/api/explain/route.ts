@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     const location = siteData.location?.data ?? {};
     const climate = siteData.climate?.data ?? {};
     const landCover = siteData.landCover ?? {};
+    const waterRisk = siteData.waterRisk ?? {};
 
     // Build a compact, well-structured prompt for the LLM.
     const systemPrompt = `You are the explanation layer of JalDrishti, a pre-development feasibility screening system for data-centre projects in India.
@@ -119,10 +120,20 @@ Live modelled climate:
 - Seven-day precipitation - ET0: ${climate.sevenDayWaterBalanceMm?.precipitationMinusEt0 ?? "n/a"} mm
 - Caveat: ${climate.modelCaveat ?? "unavailable"}
 
-Bundled land cover:
+Bundled land cover (ESA WorldCover 10 m v200):
 - Available at point: ${landCover.available ?? false}
-- Raster location/season: ${landCover.location ?? "none"} / ${landCover.season ?? "none"}
-- Raw class code: ${landCover.sample?.dominantClassCode ?? "none"} (legend not bundled)
+- Raster location: ${landCover.location ?? "none"}
+- Dominant class: ${landCover.sample?.dominantClassLabel ?? "none"} (code ${landCover.sample?.dominantClassCode ?? "n/a"})
+- Coverage is limited to 40 bundled footprints; absence is not evidence of absence.
+
+Live water risk (WRI Aqueduct 4.0, sector-weighted — cite the sector figure, not the all-sector average):
+- Semiconductor water risk: ${waterRisk.aqueduct?.sectors?.find((s) => s.code === "smc")?.overall?.categoryLabel ?? "n/a"}
+- Electric power water risk: ${waterRisk.aqueduct?.sectors?.find((s) => s.code === "elp")?.overall?.categoryLabel ?? "n/a"}
+- Basin: ${waterRisk.aqueduct?.region ?? "n/a"}, ${waterRisk.aqueduct?.country ?? "n/a"} (${waterRisk.aqueduct?.provenance?.sourceDate ?? "n/a"})
+- District context: ${waterRisk.district?.district ?? "n/a"}, ${waterRisk.district?.state ?? "n/a"}
+- District groundwater units Critical or Over-exploited: ${waterRisk.district?.groundwater?.criticalOrOverExploitedPct ?? "n/a"}%
+- Site elevation: ${waterRisk.elevation?.elevationM ?? "n/a"} m (local relief ${waterRisk.elevation?.neighbourhood?.reliefM ?? "n/a"} m)
+- Caveat: Aqueduct is a 2019 basin-scale model and district attributes run to 2018-2020. Neither is a site survey.
 
 Ecology:
 - ESZ overlap: ${eco.esz?.overlap ?? false} (nearest: ${eco.esz?.nearestDistanceKm?.toFixed(2) ?? "n/a"} km)

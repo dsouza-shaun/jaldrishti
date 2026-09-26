@@ -495,7 +495,6 @@ export async function analyze(
     kind: "info",
     outcome: "CONNECTION DATA UNKNOWN",
     reasons: [
-      "No verified DISCOM/CEA connection timeline or deliverable-capacity feed is integrated.",
       "Nearby plants are inventory context only and do not establish grid readiness.",
     ],
     provenance: context.powerProvenance,

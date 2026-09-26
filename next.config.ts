@@ -22,8 +22,6 @@ const nextConfig: NextConfig = {
       "./README.md",
       "./package-lock.json",
       "./bun.lock",
-      "./datasets/India_Land_Cover/**/landsat.tif",
-      "./datasets/India_Land_Cover/**/sentinel.tif",
     ],
   },
   serverExternalPackages: ["sharp"],

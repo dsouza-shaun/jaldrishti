@@ -5,7 +5,7 @@ import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { REGULATORY_RULES_CATALOG } from "@/lib/rules/regulatory-rules";
 import {
   Search, ArrowRight, Database, ShieldCheck, Layers, Beaker, CloudRain,
-  MapPin, BookOpen, CheckCircle2,
+  MapPin, BookOpen, CheckCircle2, Droplets, Waves, Mountain,
 } from "lucide-react";
 
 const PIPELINE = [
@@ -17,12 +17,16 @@ const PIPELINE = [
 ];
 
 const DATASETS = [
-  { title: "Groundwater resources", source: "Central Ground Water Board (CGWB) Ground Water Year Book", coverage: "Maharashtra, Telangana, Tamil Nadu", icon: Database, color: "var(--accent-red)" },
-  { title: "Rainfall & climate", source: "India Meteorological Department (IMD) district-wise rainfall statistics", coverage: "10-year time-series at major stations", icon: CloudRain, color: "var(--accent-purple)" },
-  { title: "Eco-sensitive zones", source: "Ministry of Environment, Forest and Climate Change (MoEFCC) notifications", coverage: "ESZ around protected areas", icon: Layers, color: "var(--accent-green)" },
-  { title: "Wetlands", source: "Maharashtra State Wetland Authority / MCZMA", coverage: "Creek, mangrove and lake wetlands", icon: Database, color: "var(--accent-teal)" },
-  { title: "Coastal Regulation Zone", source: "MoEFCC CRZ Notification 2018", coverage: "Coastal land strips", icon: Layers, color: "var(--accent-orange)" },
-  { title: "Forest cover", source: "Forest (Conservation) Act 1980 + state forest department data", coverage: "Reserved and protected forests", icon: Database, color: "var(--status-feasible)" },
+  { title: "Water risk, sector-weighted", source: "WRI Aqueduct 4.0, via the Esri India Living Atlas", coverage: "Aquifer water stress and depletion, with a Semiconductor and Electric Power weighting", icon: Droplets, color: "var(--accent-red)" },
+  { title: "Groundwater resources", source: "Central Ground Water Board (CGWB) Ground Water Year Book", coverage: "District-level recharge, extraction and stage of extraction", icon: Database, color: "var(--accent-teal)" },
+  { title: "District water context", source: "India district-level water quality and scarcity estimates, via Esri India Living Atlas", coverage: "Assessment-unit status, JRC surface water extent, IMD rainfall variability, aquifer geology", icon: Waves, color: "var(--accent-purple)" },
+  { title: "Terrain and elevation", source: "AWS Terrain Tiles (Terrarium), from SRTM / GMTED / ETOPO1", coverage: "Site elevation and local relief at roughly 30 m", icon: Mountain, color: "var(--accent-orange)" },
+  { title: "Satellite land cover", source: "Sentinel-2 10 m land use and land cover, via Esri India Living Atlas", coverage: "2021 classification, including a water-body class", icon: Layers, color: "var(--status-feasible)" },
+  { title: "Ground water map", source: "National Water Mission — Jal Shakti (live WMS relay)", coverage: "Monitoring stations and state availability surface, when a session is configured", icon: Database, color: "var(--accent-green)" },
+  { title: "Rainfall & climate", source: "India Meteorological Department (IMD) district-wise rainfall statistics", coverage: "1901-2015 subdivision time-series and live Open-Meteo conditions", icon: CloudRain, color: "var(--accent-teal)" },
+  { title: "Land cover", source: "ESA WorldCover rasters bundled with the app", coverage: "40 locations across three seasons", icon: MapPin, color: "var(--status-feasible)" },
+  { title: "Power plants", source: "Global Power Plant Database (WRI) derivative", coverage: "Installed capacity, fuel type and commissioning year", icon: Database, color: "var(--accent-orange)" },
+  { title: "Live basemap & ecology", source: "OpenStreetMap via OpenMapTiles and OpenFreeMap, plus the Overpass API", coverage: "Forests, wetlands, protected areas, coastlines and surface water", icon: Layers, color: "var(--accent-green)" },
 ];
 
 const EVIDENCE = [

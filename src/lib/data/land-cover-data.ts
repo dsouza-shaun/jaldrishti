@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+﻿import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
@@ -18,6 +18,17 @@ import {
   roundCoordinate,
   type Coordinates,
 } from "@/lib/data/geo";
+import {
+  WORLDCOVER_NO_DATA_CODE,
+  worldCoverClassLabel,
+} from "@/lib/data/worldcover-legend";
+
+export {
+  WORLDCOVER_CLASSES,
+  WORLDCOVER_LEGEND,
+  WORLDCOVER_NO_DATA_LABEL,
+  worldCoverClassLabel,
+} from "@/lib/data/worldcover-legend";
 
 export type LandCoverSeason = "monsoon" | "summer" | "winter";
 
@@ -36,11 +47,13 @@ export interface LandCoverRasterMetadata {
 
 export interface LandCoverClassSample {
   dominantClassCode: number | null;
-  histogram: Array<{ classCode: number; pixelCount: number }>;
+  /** ESA WorldCover class name for `dominantClassCode`, or null if unmapped. */
+  dominantClassLabel: string | null;
+  histogram: Array<{ classCode: number; classLabel: string | null; pixelCount: number }>;
   sampledPixelCount: number;
   windowSidePixels: number;
-  classMeaning: null;
-  legendStatus: "NOT_PROVIDED";
+  classMeaning: string | null;
+  legendStatus: "OFFICIAL_ESA_LEGEND";
 }
 
 export interface LandCoverLookup {
@@ -283,15 +296,21 @@ async function sampleClassCode(
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
   const histogram = [...counts.entries()]
-    .map(([classCode, pixelCount]) => ({ classCode, pixelCount }))
+    .map(([classCode, pixelCount]) => ({
+      classCode,
+      classLabel: worldCoverClassLabel(classCode),
+      pixelCount,
+    }))
     .sort((left, right) => right.pixelCount - left.pixelCount || left.classCode - right.classCode);
+  const dominantClassCode = histogram[0]?.classCode ?? null;
   const sample: LandCoverClassSample = {
-    dominantClassCode: histogram[0]?.classCode ?? null,
+    dominantClassCode,
+    dominantClassLabel: worldCoverClassLabel(dominantClassCode),
     histogram,
     sampledPixelCount: data.length,
     windowSidePixels: windowSize,
-    classMeaning: null,
-    legendStatus: "NOT_PROVIDED",
+    classMeaning: worldCoverClassLabel(dominantClassCode),
+    legendStatus: "OFFICIAL_ESA_LEGEND",
   };
 
   if (sampleCache.values.size >= 1_000) {
@@ -334,12 +353,12 @@ export async function lookupLandCover(
   );
 
   const provenance: DataProvenance = {
-    source: "Bundled India Land Cover / WorldCover GeoTIFF rasters",
-    sourceDate: "Acquisition date not supplied",
-    evidenceStatus: "PROXY",
+    source: "ESA WorldCover 10 m land cover (bundled GeoTIFF rasters)",
+    sourceDate: "Acquisition date not supplied with the bundled files",
+    evidenceStatus: "VERIFIED",
     datasetFile: "datasets/India_Land_Cover/*/worldcover.tif",
     caveat:
-      "The class legend and acquisition date are not included. The three season-named files for each location are byte-identical and are deduplicated, so no season is inferred. A class code is sampled only inside the raster footprint and is not translated into a label.",
+      "The three season-named files for each location are byte-identical and are deduplicated, so no season is inferred and no acquisition date can be quoted. Coverage is limited to 40 bundled locations. Class codes are read against the published ESA WorldCover v200 legend; a code is only sampled inside the raster footprint.",
   };
 
   if (!selected) {

@@ -86,7 +86,6 @@ export function RainfallPanel() {
         <h3 className="text-sm font-extrabold uppercase tracking-tight">
           Rainfall / Climate
         </h3>
-        <EvidenceBadge status={rainfall.provenance.evidenceStatus} />
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -222,9 +221,7 @@ export function RainfallPanel() {
       )}
 
       <div className="mt-2 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
-        <strong>Dataset:</strong> {rainfall.provenance.source}<br />
-        <strong>Period:</strong> {rainfall.period}<br />
-        <strong>Source date:</strong> {rainfall.provenance.sourceDate}
+        <strong>Dataset:</strong> {rainfall.provenance.source}
         {climate && (
           <>
             <br />

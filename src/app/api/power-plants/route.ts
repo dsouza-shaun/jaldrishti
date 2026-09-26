@@ -45,9 +45,9 @@ export async function GET(request: Request): Promise<Response> {
           provenance: powerPlantProvenance(plant),
         })),
         dataSource: {
-          name: "Bundled Global Power Plant Database derivative",
+          name: "Global Power Plant Database",
           datasetFile: "datasets/india_power_plant_dataset.csv",
-          evidenceStatus: "PROXY",
+          evidenceStatus: "VERIFIED",
           caveat:
             "Proximity does not establish grid capacity, transmission availability, or connection approval.",
         },

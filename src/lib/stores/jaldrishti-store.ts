@@ -28,6 +28,8 @@ export interface AnalysisResult {
     climate: Record<string, unknown> | null;
     nearbyPowerPlants: Array<Record<string, unknown>>;
     landCover: Record<string, unknown> | null;
+    /** WRI Aqueduct 4.0, India district water scarcity, and site elevation. */
+    waterRisk: Record<string, unknown> | null;
     failures: Array<{ provider: string; message: string }>;
     reusedAt?: string | null;
   };

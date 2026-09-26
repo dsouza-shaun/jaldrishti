@@ -128,7 +128,7 @@ function mapRow(
     extractionStagePercent: stage,
     category: categorizeGroundwaterStage(stage),
     provenance: {
-      source: "Bundled India groundwater district resource CSV",
+      source: "India groundwater district resource CSV",
       sourceDate:
         "2017 India groundwater district dataset",
       evidenceStatus: "PROXY",

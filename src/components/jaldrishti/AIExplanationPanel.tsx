@@ -53,7 +53,7 @@ export function AIExplanationPanel() {
         <div className="text-xs text-black/80 leading-relaxed">
           The classification above is the authoritative answer. This layer
           summarises it in plain language and suggests what to investigate
-          next — it cannot override the result or invent values.
+          next - it cannot override the result or invent values.
         </div>
       </div>
 

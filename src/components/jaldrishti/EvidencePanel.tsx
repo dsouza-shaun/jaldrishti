@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { ShieldCheck, Database, Link2, Bolt } from "lucide-react";
+import { EvidenceBadge, EVIDENCE_META } from "./GroundwaterPanel";
 
 interface EvidenceRow {
   key: string;
@@ -72,7 +73,7 @@ export function EvidencePanel() {
   rows.push({
     key: "rainfall",
     label: "Rainfall dataset record",
-    value: `${r.station ?? "—"} (${r.annualRainfallMm ?? "—"} mm)`,
+    value: `${r.station} (${r.annualRainfallMm} mm)`,
     source: r.provenance.source,
     sourceDate: r.provenance.sourceDate,
     evidenceStatus: r.provenance.evidenceStatus,
@@ -96,6 +97,75 @@ export function EvidencePanel() {
     }
   }
 
+  // Live water risk: Aqueduct, district water context, terrain.
+  const waterRisk = analysis.siteData.waterRisk as unknown as {
+    aqueduct: {
+      available: boolean;
+      sectors: Array<{ code: string; label: string; overall: { categoryLabel: string | null } }>;
+      provenance: { source: string; sourceDate: string; evidenceStatus: string };
+    } | null;
+    district: {
+      available: boolean;
+      district: string | null;
+      groundwater: { criticalOrOverExploitedPct: number | null } | null;
+      provenance: { source: string; sourceDate: string; evidenceStatus: string };
+    } | null;
+    elevation: {
+      available: boolean;
+      elevationM: number | null;
+      resolutionMPerPixel: number | null;
+      provenance: { source: string; sourceDate: string; evidenceStatus: string };
+    } | null;
+  } | null;
+
+  if (waterRisk?.aqueduct?.available) {
+    for (const sector of waterRisk.aqueduct.sectors) {
+      if (sector.code !== "smc" && sector.code !== "elp") continue;
+      rows.push({
+        key: `aqueduct-${sector.code}`,
+        label: `Water risk: ${sector.label}`,
+        value: sector.overall.categoryLabel ?? "not scored",
+        source: waterRisk.aqueduct.provenance.source,
+        sourceDate: waterRisk.aqueduct.provenance.sourceDate,
+        evidenceStatus: waterRisk.aqueduct.provenance.evidenceStatus,
+        category: "data",
+      });
+    }
+  }
+
+  if (waterRisk?.district?.available) {
+    rows.push({
+      key: "district-water",
+      label: "District water context",
+      value: `${waterRisk.district.district ?? "?"} (${
+        waterRisk.district.groundwater?.criticalOrOverExploitedPct !== null &&
+        waterRisk.district.groundwater?.criticalOrOverExploitedPct !== undefined
+          ? `${waterRisk.district.groundwater.criticalOrOverExploitedPct}% Critical or Over-exploited`
+          : "no unit data"
+      })`,
+      source: waterRisk.district.provenance.source,
+      sourceDate: waterRisk.district.provenance.sourceDate,
+      evidenceStatus: waterRisk.district.provenance.evidenceStatus,
+      category: "data",
+    });
+  }
+
+  if (waterRisk?.elevation?.available && waterRisk.elevation.elevationM !== null) {
+    rows.push({
+      key: "elevation",
+      label: "Site elevation (terrain DEM)",
+      value: `${waterRisk.elevation.elevationM} m${
+        waterRisk.elevation.resolutionMPerPixel !== null
+          ? ` at ${waterRisk.elevation.resolutionMPerPixel} m/px`
+          : ""
+      }`,
+      source: waterRisk.elevation.provenance.source,
+      sourceDate: waterRisk.elevation.provenance.sourceDate,
+      evidenceStatus: waterRisk.elevation.provenance.evidenceStatus,
+      category: "data",
+    });
+  }
+
   const climate = analysis.siteData.climate as unknown as {
     provider: string;
     retrievedAt: string;
@@ -108,7 +178,7 @@ export function EvidencePanel() {
     rows.push({
       key: "climate",
       label: "Modelled current weather",
-      value: `${climate.data.current.temperatureC ?? "—"}°C`,
+      value: `${climate.data.current.temperatureC ?? "â€”"}°C`,
       source: climate.data.attribution.label,
       sourceDate: climate.retrievedAt,
       evidenceStatus: "PROXY",
@@ -119,15 +189,22 @@ export function EvidencePanel() {
   const landCover = analysis.siteData.landCover as unknown as {
     available: boolean;
     location: string | null;
-    sample: { dominantClassCode: number | null } | null;
+    sample: { dominantClassCode: number | null; dominantClassLabel: string | null } | null;
     provenance: { source: string; sourceDate: string; evidenceStatus: string };
   } | null;
   if (landCover) {
     rows.push({
       key: "land-cover",
       label: "Bundled land-cover raster",
+      // The ESA WorldCover class name, not the bare integer. The code is kept
+      // alongside it so a reader can look the value up in the product manual.
       value: landCover.available
-        ? `${landCover.location}: code ${landCover.sample?.dominantClassCode ?? "unknown"}`
+        ? `${landCover.location}: ${
+            landCover.sample?.dominantClassLabel ??
+            (landCover.sample?.dominantClassCode != null
+              ? `unmapped code ${landCover.sample.dominantClassCode}`
+              : "no valid pixel")
+          }`
         : "Outside available raster footprints",
       source: landCover.provenance.source,
       sourceDate: landCover.provenance.sourceDate,
@@ -158,7 +235,7 @@ export function EvidencePanel() {
   rows.push({
     key: "power",
     label: "Power inventory / connection",
-    value: `${p.timeline}; ${p.nearbyPowerPlants.length} nearby plant record(s)`,
+    value: `${p.nearbyPowerPlants.length} nearby plant record(s)`,
     source: p.provenance.source,
     sourceDate: p.provenance.sourceDate,
     evidenceStatus: p.provenance.evidenceStatus,
@@ -196,6 +273,7 @@ export function EvidencePanel() {
             <tr>
               <th className="text-left p-2">Field</th>
               <th className="text-left p-2">Value</th>
+              <th className="text-left p-2">Evidence</th>
               <th className="text-left p-2">Source</th>
               <th className="text-left p-2">Date</th>
             </tr>
@@ -210,6 +288,7 @@ export function EvidencePanel() {
                   </span>
                 </td>
                 <td className="p-2 font-mono text-[10px]">{row.value}</td>
+                <td className="p-2"><EvidenceBadge status={row.evidenceStatus} /></td>
                 <td className="p-2 text-[10px]">{row.source}</td>
                 <td className="p-2 text-[10px] font-mono">{row.sourceDate}</td>
               </tr>
@@ -218,9 +297,16 @@ export function EvidencePanel() {
         </table>
       </div>
 
-      <div className="mt-2 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2 flex items-center gap-1">
-        <Bolt className="w-3 h-3" />
-        Every value carries its source and evidence status — all the way to the final classification.
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {(["VERIFIED", "PROXY", "UNKNOWN"] as const).map((status) => {
+          const meta = EVIDENCE_META[status];
+          return (
+            <div key={status} className="flex items-start gap-2 border-[2px] border-black bg-[var(--paper)] p-2">
+              <span className="nb-badge shrink-0" style={{ background: meta.color }}>{meta.label}</span>
+              <p className="text-[10px] leading-snug text-black/70">{meta.explanation}</p>
+            </div>
+          );
+        })}
       </div>
     </motion.section>
   );

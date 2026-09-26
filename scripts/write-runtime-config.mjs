@@ -1,0 +1,162 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+/**
+ * Bakes the runtime configuration a desktop build needs into the staged app.
+ *
+ * Why this exists: `scripts/clean-standalone.mjs` deliberately deletes every
+ * `.env*` file from the Next.js standalone output, which is correct for a web
+ * deploy where configuration is injected by the platform. It is wrong for the
+ * Windows desktop build, where the app is started by a launcher that a user
+ * double-clicks on a machine that has no environment variables at all. Without
+ * this step the installed app silently loses the Groq key (so the AI
+ * explanation panel dies), the Nominatim contact string (which the Nominatim
+ * usage policy requires, so geocoding gets blocked), and any Open-Meteo key.
+ *
+ * Security note, stated plainly because it cannot be engineered away: these
+ * values are recoverable from the shipped installer by anyone who unzips it.
+ * That is inherent to bundling a credential in a desktop binary. It is fine for
+ * a scoped, rate-limited, public-service key; it is NOT fine for a key holding
+ * billing or write access to anything. Keep the keys in a low-privilege,
+ * read-only, quota-capped account, and prefer the optional-key path when a
+ * feature degrades gracefully.
+ *
+ * Environment variables always win over baked values, so a developer or IT
+ * administrator can still override anything at launch without a rebuild.
+ */
+
+/**
+ * `required` keys abort the build when missing, because the resulting installer
+ * would be shipped in a state that is quietly broken rather than obviously
+ * broken. Everything else is reported but does not block.
+ */
+const CONFIG_KEYS = [
+  { name: "GROQ_API_KEY", required: true, note: "Plain-language explanations (/api/explain)" },
+  { name: "GROQ_MODEL", required: false, note: "Explanation model override" },
+  { name: "NOMINATIM_USER_AGENT", required: true, note: "Required by the Nominatim usage policy" },
+  { name: "NOMINATIM_EMAIL", required: false, note: "Nominatim contact address" },
+  { name: "NOMINATIM_BASE_URL", required: false, note: "Nominatim host override" },
+  { name: "NOMINATIM_ZOOM", required: false, note: "Reverse-geocode zoom" },
+  { name: "OPEN_METEO_API_KEY", required: false, note: "Open-Meteo customer key" },
+  { name: "OPEN_METEO_FORECAST_BASE_URL", required: false, note: "Open-Meteo forecast host" },
+  { name: "OPEN_METEO_AIR_QUALITY_BASE_URL", required: false, note: "Open-Meteo air-quality host" },
+  { name: "OPEN_METEO_FLOOD_BASE_URL", required: false, note: "Open-Meteo flood host" },
+  { name: "JALDRISHTI_NWIC_COOKIE", required: false, note: "National Water Mission session" },
+  { name: "JALDRISHTI_NWIC_BASE_URL", required: false, note: "National Water Mission host override" },
+  { name: "JALDRISHTI_NWIC_TIMEOUT_MS", required: false, note: "National Water Mission timeout" },
+  { name: "JALDRISHTI_DATASETS_DIR", required: false, note: "External datasets directory" },
+];
+
+/**
+ * Deliberately excluded: `DATABASE_URL`. The launcher points each install at
+ * its own SQLite file under LOCALAPPDATA, and baking a build-machine path in
+ * would either be wrong or would overwrite a user's data.
+ */
+const NEVER_BAKED = new Set(["DATABASE_URL", "NODE_ENV", "PORT", "HOSTNAME"]);
+
+function parseArguments(argv) {
+  const options = { output: null, allowMissingRequired: false };
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === "--output" || argument === "-o") {
+      options.output = argv[index + 1] ?? null;
+      index += 1;
+    } else if (argument === "--allow-missing-required") {
+      options.allowMissingRequired = true;
+    }
+  }
+  return options;
+}
+
+async function main() {
+  const options = parseArguments(process.argv.slice(2));
+  if (!options.output) {
+    throw new Error(
+      "Usage: node scripts/write-runtime-config.mjs --output <path> [--allow-missing-required]",
+    );
+  }
+
+  const baked = {};
+  const missingRequired = [];
+  const missingOptional = [];
+  const present = [];
+
+  for (const key of CONFIG_KEYS) {
+    if (NEVER_BAKED.has(key.name)) continue;
+    const raw = process.env[key.name];
+    // An empty or whitespace-only value is treated as unset: shipping
+    // `GROQ_API_KEY=""` is worse than shipping nothing, because the app would
+    // try to authenticate with an empty key and report a confusing 401.
+    const value = typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
+    if (value === null) {
+      if (key.required) missingRequired.push(key);
+      else missingOptional.push(key);
+      continue;
+    }
+    baked[key.name] = value;
+    present.push(key);
+  }
+
+  const target = path.resolve(options.output);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(
+    target,
+    `${JSON.stringify(
+      {
+        _comment:
+          "Generated by scripts/write-runtime-config.mjs. Contains build-time credentials and is intentionally shipped with the desktop build. Regenerate rather than hand-edit.",
+        bakedAt: new Date().toISOString(),
+        keys: baked,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+
+  const nameOnly = (key) => key.name;
+  for (const key of present) {
+    console.log(`  baked    ${key.name.padEnd(30)} ${key.note}`);
+  }
+  for (const key of missingOptional) {
+    console.log(`  absent   ${key.name.padEnd(30)} ${key.note} (optional)`);
+  }
+
+  if (missingRequired.length > 0) {
+    const lines = missingRequired
+      .map((key) => `  - ${key.name}: ${key.note}`)
+      .join("\n");
+    const message = [
+      "Required runtime configuration is missing:",
+      lines,
+      "",
+      "Set them in the environment or in .env before building, for example:",
+      "  GROQ_API_KEY=gsk_...",
+      "  NOMINATIM_USER_AGENT='JalDrishti/0.2.1 (maintainer: you@example.org)'",
+      "",
+      "Or pass --allow-missing-required to ship anyway. The installer will then",
+      "start with those features disabled.",
+    ].join("\n");
+
+    if (!options.allowMissingRequired) {
+      console.error(`\n${message}\n`);
+      throw new Error(
+        `${missingRequired.map(nameOnly).join(", ")} not set. Refusing to build an installer that silently cannot do its job.`,
+      );
+    }
+    console.warn(`\n${message}\n`);
+  }
+
+  const written = await readFile(target, "utf8").catch(() => "");
+  if (!written.includes("bakedAt")) {
+    throw new Error("Runtime config verification failed: file did not round-trip");
+  }
+  console.log(
+    `\nRuntime config written to ${target} (${Object.keys(baked).length} key(s)).`,
+  );
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

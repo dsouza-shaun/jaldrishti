@@ -2,8 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Bolt, Factory, MapPin } from "lucide-react";
-import { EvidenceBadge } from "./GroundwaterPanel";
+import { Factory, MapPin } from "lucide-react";
 
 interface NearbyPlant {
   id: string;
@@ -41,33 +40,9 @@ export function PowerPanel() {
       className="nb-card p-4"
     >
       <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
-        <div className="flex items-center gap-2">
-          <Bolt className="w-4 h-4" />
-          <h3 className="text-sm font-extrabold uppercase tracking-tight">
-            Power / Grid Context
-          </h3>
-        </div>
-        <EvidenceBadge status={power.provenance.evidenceStatus} />
-      </div>
-
-      <div className="border-[2px] border-black p-3 bg-[var(--paper)] mb-3">
-        <div className="text-[9px] font-extrabold uppercase tracking-wider text-black/60">
-          Verified connection timeline
-        </div>
-        <div
-          className="font-extrabold text-base"
-          style={{ color: "var(--accent-orange)" }}
-        >
-          {power.timeline}
-        </div>
-        <div className="text-[11px] text-black/70 mt-1">
-          No state DISCOM/CEA connection or deliverable-capacity feed is
-          integrated. Nearby plants are inventory context only.
-        </div>
-      </div>
-
-      <div className="text-[9px] font-extrabold uppercase tracking-wider text-black/60 mb-1">
-        Nearest bundled plants
+        <h3 className="text-sm font-extrabold uppercase tracking-tight">
+          Nearest Power Plants
+        </h3>
       </div>
       {power.nearbyPowerPlants.length === 0 ? (
         <div className="border-[2px] border-black p-3 text-xs font-mono">
@@ -102,14 +77,6 @@ export function PowerPanel() {
           ))}
         </div>
       )}
-
-      <div className="mt-2 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
-        <strong>Source:</strong> {power.provenance.source}<br />
-        <strong>Vintage:</strong> {power.provenance.sourceDate}
-        {power.provenance.caveat && (
-          <div className="mt-1 leading-snug">{power.provenance.caveat}</div>
-        )}
-      </div>
     </motion.section>
   );
 }

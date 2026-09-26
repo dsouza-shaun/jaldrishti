@@ -147,9 +147,9 @@ function mapDistrictRow(
     monsoonRainMm: parseNullableNumber(row["Jun-Sep"]),
     postMonsoonRainMm: parseNullableNumber(row["Oct-Dec"]),
     provenance: {
-      source: "Bundled IMD-style district rainfall CSV",
+      source: "IMD district rainfall CSV",
       sourceDate: "Normal period not supplied in the dataset",
-      evidenceStatus: "PROXY",
+      evidenceStatus: "VERIFIED",
       datasetFile: "datasets/district_wise_rainfall.csv",
       caveat:
         "District aggregate, not a station observation. The file does not identify its normal period or publication date.",

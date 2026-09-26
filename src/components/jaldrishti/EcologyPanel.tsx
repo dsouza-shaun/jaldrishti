@@ -2,8 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Trees, Waves, Mountain, Anchor, Layers } from "lucide-react";
-import { EvidenceBadge } from "./GroundwaterPanel";
+import { Trees, Waves, Mountain, Anchor } from "lucide-react";
 
 const LAYER_META = {
   esz:     { label: "ESZ (Eco-Sensitive Zone)",     icon: <Mountain className="w-4 h-4" />, color: "#8b5cf6" },
@@ -28,29 +27,18 @@ export function EcologyPanel() {
   >;
 
   const layers = Object.keys(LAYER_META) as ("esz" | "forest" | "wetland" | "crz")[];
-  const landCover = analysis.siteData.landCover as unknown as {
-    available: boolean;
-    reason: string;
-    location: string | null;
-    season: string | null;
-    selectedByRequestedSeason: boolean;
-    sample: { dominantClassCode: number | null; legendStatus: string } | null;
-    nearestDatasetDistanceKm: number | null;
-    provenance: { evidenceStatus: string; caveat?: string };
-  } | null;
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
+      className="nb-card p-4 h-full flex flex-col"
     >
       <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
         <h3 className="text-sm font-extrabold uppercase tracking-tight">Ecological Constraint Engine</h3>
-        <span className="text-[10px] font-mono text-black/60">4 ecological layers</span>
       </div>
 
-      <div className="space-y-2">
+      <div className="flex-1 flex flex-col justify-between space-y-2">
         {layers.map((k) => {
           const e = eco[k];
           const meta = LAYER_META[k];
@@ -101,42 +89,6 @@ export function EcologyPanel() {
           );
         })}
       </div>
-
-      {landCover && (
-        <div className="mt-3 border-[2px] border-black bg-[var(--paper)] p-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 font-extrabold text-xs uppercase">
-              <Layers className="w-4 h-4" /> Bundled land-cover raster
-            </div>
-            <EvidenceBadge status={landCover.provenance.evidenceStatus} />
-          </div>
-          {landCover.available ? (
-            <div className="mt-2 text-[10px] font-mono">
-              <div>
-                <strong>Footprint:</strong> {landCover.location} · {landCover.season}
-                {!landCover.selectedByRequestedSeason && " (off-season fallback)"}
-              </div>
-              <div className="mt-1">
-                <strong>Raw class code:</strong>{" "}
-                {landCover.sample?.dominantClassCode ?? "No valid pixel"}
-              </div>
-              <div className="mt-1 text-black/60">
-                Legend not bundled; code is not translated into a class label.
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2 text-[10px] font-mono">
-              Point is outside all bundled raster footprints.
-              {landCover.nearestDatasetDistanceKm !== null && (
-                <>
-                  {" "}Nearest raster edge is approximately{" "}
-                  {landCover.nearestDatasetDistanceKm.toFixed(1)} km away.
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </motion.section>
   );
 }

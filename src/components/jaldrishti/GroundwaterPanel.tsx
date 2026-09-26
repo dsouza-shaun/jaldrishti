@@ -126,7 +126,6 @@ export function GroundwaterPanel() {
 
       <div className="mt-3 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
         <strong>Source:</strong> {groundwater.provenance.source}<br />
-        <strong>Source date:</strong> {groundwater.provenance.sourceDate}<br />
         <strong>Spatial resolution:</strong>{" "}
         {groundwater.assessmentUnitVerified
           ? "Assessment unit verified"
@@ -165,8 +164,31 @@ function Info({
   );
 }
 
+const EVIDENCE_META: Record<string, { label: string; color: string; explanation: string }> = {
+  VERIFIED: {
+    label: "Verified",
+    color: "var(--status-verified)",
+    explanation: "Read directly from a named dataset or official record for this exact site.",
+  },
+  PROXY: {
+    label: "Proxy",
+    color: "var(--status-conditional)",
+    explanation: "Modelled or estimated from the nearest available data, not measured on site.",
+  },
+  UNKNOWN: {
+    label: "Limited data",
+    color: "var(--status-unknown)",
+    explanation: "No matching dataset was found; treat this value as a placeholder, not a fact.",
+  },
+};
+
 export function EvidenceBadge({ status }: { status: string }) {
-  const label = status === "VERIFIED" ? "Available" : status === "PROXY" ? "Estimate" : "Limited data";
-  const color = status === "VERIFIED" ? "var(--status-verified)" : status === "PROXY" ? "var(--status-conditional)" : "var(--status-unknown)";
-  return <span className="nb-badge" style={{ background: color }}>{label}</span>;
+  const meta = EVIDENCE_META[status] ?? EVIDENCE_META.UNKNOWN;
+  return (
+    <span className="nb-badge" style={{ background: meta.color }} title={meta.explanation}>
+      {meta.label}
+    </span>
+  );
 }
+
+export { EVIDENCE_META };
