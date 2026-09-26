@@ -27,13 +27,23 @@ import path from "node:path";
 
 /**
  * `required` keys abort the build when missing, because the resulting installer
- * would be shipped in a state that is quietly broken rather than obviously
- * broken. Everything else is reported but does not block.
+ * would ship with a feature that is dead with no user-visible explanation.
+ * Everything else is reported but does not block.
+ *
+ * Only GROQ_API_KEY is required, and deliberately so: with no key
+ * `/api/explain` returns 503 and the AI explanation panel is permanently
+ * unavailable. There is no fallback.
+ *
+ * NOMINATIM_USER_AGENT is NOT required, because the app falls back to the bare
+ * string "JalDrishti/0.2.1", which Nominatim accepts (verified: HTTP 200). It
+ * is reported and sanity-checked because the Nominatim usage policy asks for a
+ * contact, and because a plausible-looking placeholder is an easy way to
+ * ship a User-Agent that gets the whole client blocked.
  */
 const CONFIG_KEYS = [
   { name: "GROQ_API_KEY", required: true, note: "Plain-language explanations (/api/explain)" },
   { name: "GROQ_MODEL", required: false, note: "Explanation model override" },
-  { name: "NOMINATIM_USER_AGENT", required: true, note: "Required by the Nominatim usage policy" },
+  { name: "NOMINATIM_USER_AGENT", required: false, note: "Identifies this app to Nominatim; app falls back to a bare UA if unset" },
   { name: "NOMINATIM_EMAIL", required: false, note: "Nominatim contact address" },
   { name: "NOMINATIM_BASE_URL", required: false, note: "Nominatim host override" },
   { name: "NOMINATIM_ZOOM", required: false, note: "Reverse-geocode zoom" },
@@ -46,6 +56,47 @@ const CONFIG_KEYS = [
   { name: "JALDRISHTI_NWIC_TIMEOUT_MS", required: false, note: "National Water Mission timeout" },
   { name: "JALDRISHTI_DATASETS_DIR", required: false, note: "External datasets directory" },
 ];
+
+/**
+ * Nominatim User-Agent checks, split into two categories because they have
+ * different consequences and must not be reported as the same problem.
+ *
+ * Verified against the live service on 2026-09-26:
+ *
+ *   no User-Agent                                   -> 403 Access denied
+ *   Mozilla/5.0                                     -> 403 Access denied
+ *   JalDrishti/0.2.1                                -> 200 OK
+ *   JalDrishti/0.2.1 (maintainer: ops@invalid.test) -> 200 OK
+ *   JalDrishti/0.2.1 (maintainer: ops@example.org) -> 403 Access denied
+ *
+ * The last line is the trap: example.org, example.com and example.net are
+ * reserved documentation domains and Nominatim blocks any User-Agent
+ * containing one, so a placeholder that looks harmless in a config file turns
+ * into a runtime outage with a misleading "Access denied" message.
+ */
+const USER_AGENT_CHECKS = [
+  {
+    pattern: /example\.(org|com|net)\b/i,
+    blocks: true,
+    reason: "example.org/com/net are reserved documentation domains and Nominatim returns 403 for any User-Agent containing one",
+  },
+  {
+    pattern: /^(mozilla|curl|wget|python-requests|okhttp|axios|node|postman|java|go-http-client)/i,
+    blocks: true,
+    reason: "a generic client string is both rejected by Nominatim (403) and does not identify this application",
+  },
+  {
+    pattern: /\b(your|replace|placeholder|changeme|change-me|todo|fixme|xxx+)\b|[-_](your|here)\b|(^|[^a-z])me@/i,
+    blocks: false,
+    reason: "still an unreplaced placeholder; it works but publishes a contact nobody can answer to",
+  },
+  {
+    pattern: /@?(invalid|localhost|test)\b|\b127\.0\.0\.1\b/i,
+    blocks: false,
+    reason: "a reserved or loopback domain cannot be a real contact address",
+  },
+];
+
 
 /**
  * Deliberately excluded: `DATABASE_URL`. The launcher points each install at
@@ -120,6 +171,47 @@ async function main() {
   }
   for (const key of missingOptional) {
     console.log(`  absent   ${key.name.padEnd(30)} ${key.note} (optional)`);
+  }
+
+  // Sanity-check the Nominatim User-Agent before it is baked. This is a
+  // warning rather than a hard stop, because the app's bare fallback works;
+  // but shipping a value Nominatim will 403 on, or a placeholder that will be
+  // quoted back at an operator, is worth shouting about.
+  const userAgent = baked.NOMINATIM_USER_AGENT;
+  if (userAgent) {
+    const blocking = [];
+    const cosmetic = [];
+    for (const check of USER_AGENT_CHECKS) {
+      if (!check.pattern.test(userAgent)) continue;
+      (check.blocks ? blocking : cosmetic).push(check.reason);
+    }
+    if (blocking.length > 0) {
+      console.warn(
+        `\n  WARNING  NOMINATIM_USER_AGENT WILL FAIL. Reverse geocoding returns` +
+          `\n           HTTP 403 "Access denied" for this value, with no other` +
+          `\n           diagnostic.\n` +
+          blocking.map((r) => `             - ${r}`).join("\n") +
+          `\n           value: ${userAgent}\n`,
+      );
+    }
+    if (cosmetic.length > 0) {
+      console.warn(
+        `\n  note     NOMINATIM_USER_AGENT will be sent as-is. It works, but:\n` +
+          cosmetic.map((r) => `             - ${r}`).join("\n") +
+          `\n           value: ${userAgent}\n` +
+          `           Shipping this means the operator cannot be contacted if\n` +
+          `           this client ever needs to be throttled or blocked.\n`,
+      );
+    }
+    if (blocking.length === 0 && cosmetic.length === 0) {
+      console.log(`  verified NOMINATIM_USER_AGENT has a real-looking contact and no blocked domain`);
+    }
+  } else {
+    console.warn(
+      "\n  note     NOMINATIM_USER_AGENT is unset. The app will fall back to the\n" +
+        "           bare string \"JalDrishti/0.2.1\", which Nominatim accepts, but\n" +
+        "           it carries no contact address for the operator.\n",
+    );
   }
 
   if (missingRequired.length > 0) {

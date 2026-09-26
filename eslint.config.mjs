@@ -44,7 +44,23 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "public/maplibre-gl*.mjs"]
+  // `.release/**` holds the Windows installer staging tree: a full copy of the
+  // standalone build including its own node_modules and a runtime-config.json
+  // containing build-time credentials. The ignore patterns below are
+  // root-anchored, so "node_modules/**" does not cover the nested copy and
+  // `eslint .` would otherwise walk ~280 MB of third-party source.
+  ignores: [
+    "node_modules/**",
+    "**/node_modules/**",
+    ".next/**",
+    ".release/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills",
+    "public/maplibre-gl*.mjs",
+  ]
 }];
 
 export default eslintConfig;
