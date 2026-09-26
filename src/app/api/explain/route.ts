@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOwnerId } from "@/lib/auth/owner";
+import { db } from "@/lib/db";
+import { canAccessProject, getSessionUser } from "@/lib/auth/session";
 import {
   checkEdgeRateLimit,
   rateLimitResponse,
@@ -21,9 +22,10 @@ import {
 export async function POST(req: NextRequest) {
   const rate = checkEdgeRateLimit(req, "explanation", 10, 60 * 60_000);
   if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
-  if (!getOwnerId(req)) {
+  const user = await getSessionUser(req);
+  if (!user) {
     return NextResponse.json(
-      { error: "Project ownership cookie is missing." },
+      { error: "Authentication required." },
       { status: 401, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -35,6 +37,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Missing analysis" },
         { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    // The client sends the analysis body for convenience, so the project
+    // reference is verified separately: an explanation must only be produced
+    // for, and stored against, a project the caller can actually read.
+    const projectId: string | undefined = body.projectId;
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "Missing project reference." },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const project = await db.project.findUnique({ where: { id: projectId } });
+    if (!project || !canAccessProject(user, project)) {
+      return NextResponse.json(
+        { error: "Project not found." },
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -189,6 +209,21 @@ ${(siteData.failures ?? []).map((failure) => `- ${failure.provider}: ${failure.m
     }
     const completion = await groqResponse.json();
     const text: string = completion.choices?.[0]?.message?.content ?? "";
+
+    // Persist against the latest analysis so the report, the PDF and the Word
+    // export can include the explanation after a reload. This stores text that
+    // explains the result; it never feeds back into the result.
+    const latest = await db.analysis.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (latest && text) {
+      await db.analysis.update({
+        where: { id: latest.id },
+        data: { explanation: text },
+      });
+    }
 
     return NextResponse.json(
       { explanation: text },

@@ -1,22 +1,81 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
+import { Search, ArrowRight, Loader2, TrendingDown, TrendingUp, Minus, Zap } from "lucide-react";
 import { useJalDrishti, type ScenarioResult } from "@/lib/stores/jaldrishti-store";
 import { WhatIfPanel } from "@/components/jaldrishti/WhatIfPanel";
-import { Search, ArrowRight, FlaskConical, TrendingDown, TrendingUp, BarChart3 } from "lucide-react";
+import { DataTable, Metric, SectionShell, StatusChip, classificationTone } from "@/components/jaldrishti/Document";
+import { COOLING_TECH_WUE_BANDS, defaultWueForCooling } from "@/lib/engines/water-demand";
+import { useToast } from "@/hooks/use-toast";
+import { buildRecommendations, titleCase } from "@/lib/report/document";
+import { useReportInput } from "@/hooks/use-report-input";
 
+interface WaterReading {
+  waterKlPerDay: number;
+  waterMcmPerYear: number;
+  waterMld: number;
+  facilityEnergyMwhPerDay: number;
+}
+
+function readWater(result: unknown): WaterReading {
+  const w = (result as { waterDemand?: Partial<WaterReading> } | null)?.waterDemand ?? {};
+  return {
+    waterKlPerDay: Number(w.waterKlPerDay ?? 0),
+    waterMcmPerYear: Number(w.waterMcmPerYear ?? 0),
+    waterMld: Number(w.waterMld ?? 0),
+    facilityEnergyMwhPerDay: Number(w.facilityEnergyMwhPerDay ?? 0),
+  };
+}
+
+function kl(value: number): string {
+  return Math.round(value).toLocaleString("en-IN");
+}
+
+/**
+ * Scenario and mitigation analysis.
+ *
+ * Every number here comes from the real engine, which recomputes the whole
+ * screening for each scenario. The chart answers one question: how much did this
+ * change move total water demand. It plots total demand rather than freshwater
+ * because the screening does not model a freshwater and reclaimed split, and
+ * inventing one would misstate what the system knows.
+ */
 export function ScenariosView() {
-  const { analysis, scenarios, setView } = useJalDrishti();
+  const { analysis, scenarios, setView, currentProjectId } = useJalDrishti();
+  const { toast } = useToast();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
+  const reportInput = useReportInput();
 
-  if (!analysis) {
+  const baseline = analysis ? readWater(analysis) : null;
+  const baselineClass = analysis?.classification.classification ?? "";
+
+  const rows = useMemo(
+    () =>
+      scenarios.map((scenario) => {
+        const water = readWater(scenario.result);
+        const delta = baseline ? water.waterKlPerDay - baseline.waterKlPerDay : 0;
+        const percent = baseline && baseline.waterKlPerDay > 0 ? (delta / baseline.waterKlPerDay) * 100 : 0;
+        return {
+          scenario,
+          water,
+          delta,
+          percent,
+          classification: scenario.result.classification.classification,
+        };
+      }),
+    [scenarios, baseline],
+  );
+
+  if (!analysis || !baseline || !currentProjectId) {
     return (
-      <div className="max-w-[1100px] mx-auto px-4 md:px-8 py-20 text-center">
-        <div className="nb-card p-12" style={{ background: "var(--accent-yellow)" }}>
-          <h1 className="text-4xl font-extrabold mb-3">Run a screening first</h1>
-          <p className="text-lg text-black/70 mb-6">
-            What-if scenarios need a baseline analysis to compare against.
+      <div className="max-w-[900px] mx-auto px-4 py-20 text-center">
+        <div className="nb-card p-10">
+          <h1 className="text-2xl font-extrabold mb-2">Run a screening first</h1>
+          <p className="text-[var(--nb-muted)] mb-6">
+            A scenario is compared against a baseline result, so there has to be one.
           </p>
-          <button onClick={() => setView("analyze")} className="nb-btn nb-btn-primary text-lg !py-3 !px-6 mx-auto">
+          <button onClick={() => setView("analyze")} className="nb-btn nb-btn-primary text-lg">
             <Search className="w-5 h-5" />
             Start screening
             <ArrowRight className="w-5 h-5" />
@@ -26,206 +85,487 @@ export function ScenariosView() {
     );
   }
 
-  const baselineKl = (analysis.waterDemand as { waterKlPerDay: number }).waterKlPerDay;
-  const baselineMcm = (analysis.waterDemand as { waterMcmPerYear: number }).waterMcmPerYear;
-  const baselineCls = analysis.classification.classification;
+  const active =
+    rows.find((row) => row.scenario.id === selected) ?? rows[0] ?? null;
 
-  // Find best (lowest water) and worst (highest water) scenarios
-  const sortedScenarios = [...scenarios].sort((a, b) => {
-    const aw = (a.result.waterDemand as { waterKlPerDay: number }).waterKlPerDay;
-    const bw = (b.result.waterDemand as { waterKlPerDay: number }).waterKlPerDay;
-    return aw - bw;
-  });
-  const best = sortedScenarios[0];
-  const worst = sortedScenarios[sortedScenarios.length - 1];
+  /**
+   * Mitigation presets.
+   *
+   * Each preset is only a change to the submitted parameters, sent through the
+   * existing scenario endpoint so the engine recomputes the full screening. No
+   * preset invents a rule or a threshold; a cooling change simply adopts the
+   * published typical WUE for that technology.
+   */
+  const runPreset = async (
+    key: string,
+    label: string,
+    patch: Record<string, unknown>,
+  ) => {
+    setRunning(key);
+    try {
+      const response = await fetch(`/api/projects/${currentProjectId}/scenarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, ...patch }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Failed");
+
+      const water = readWater(data.result);
+      const delta = water.waterKlPerDay - baseline.waterKlPerDay;
+      const percent = baseline.waterKlPerDay > 0 ? (delta / baseline.waterKlPerDay) * 100 : 0;
+
+      useJalDrishti.getState().addScenario({
+        id: data.scenarioId,
+        label,
+        createdAt: new Date().toISOString(),
+        result: data.result,
+      });
+      setSelected(data.scenarioId);
+
+      toast({
+        title: "Scenario computed",
+        description: `${kl(water.waterKlPerDay)} kL/day, ${percent >= 0 ? "+" : ""}${percent.toFixed(1)}% against baseline.`,
+      });
+    } catch (cause) {
+      toast({
+        title: "Scenario failed",
+        description: cause instanceof Error ? cause.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setRunning(null);
+    }
+  };
+
+  const project = reportInput?.project;
+  const currentCooling = project?.coolingType ?? "water-cooled-chiller";
+  const band = COOLING_TECH_WUE_BANDS[currentCooling];
+  const wueImprovementPossible = band ? project!.wue > band.low : false;
+  const alternative = project?.alternativeWaterSource;
+  const alternativePossible = Boolean(alternative) && alternative !== project?.proposedWaterSource;
+
+  const presets = [
+    {
+      key: "wue",
+      label: "Improve WUE to the published low end",
+      enabled: wueImprovementPossible,
+      note: band ? `${project!.wue} to ${band.low} L/kWh` : "",
+      run: () =>
+        runPreset("wue", "Improve WUE", {
+          coolingType: currentCooling,
+          wue: band.low,
+        }),
+    },
+    {
+      key: "air",
+      label: "Switch to air-cooled chiller",
+      enabled: currentCooling !== "air-cooled-chiller",
+      note: `WUE ${defaultWueForCooling("air-cooled-chiller")} L/kWh`,
+      run: () =>
+        runPreset("air", "Switch to air-cooled", {
+          coolingType: "air-cooled-chiller",
+          wue: defaultWueForCooling("air-cooled-chiller"),
+        }),
+    },
+    {
+      key: "dlc",
+      label: "Switch to direct liquid cooling",
+      enabled: currentCooling !== "direct-liquid",
+      note: `WUE ${defaultWueForCooling("direct-liquid")} L/kWh`,
+      run: () =>
+        runPreset("dlc", "Switch to direct liquid cooling", {
+          coolingType: "direct-liquid",
+          wue: defaultWueForCooling("direct-liquid"),
+        }),
+    },
+    {
+      key: "source",
+      label: "Use the alternative water source",
+      enabled: alternativePossible,
+      note: alternative ? titleCase(alternative) : "No alternative was submitted",
+      run: () =>
+        runPreset("source", "Alternative water source", {
+          proposedWaterSource: alternative,
+        }),
+    },
+  ];
+
+  const maxDemand = Math.max(
+    baseline.waterKlPerDay,
+    ...rows.map((row) => row.water.waterKlPerDay),
+  );
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8 py-8 sm:py-10 space-y-6 sm:space-y-8">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-        <div className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-red)]">
-          What-if analysis
-        </div>
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight">
-          Explore alternatives.
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8 py-6 sm:py-8 space-y-6">
+      <header>
+        <div className="nb-eyebrow">What-if analysis</div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-0.5">
+          Scenarios and mitigation
         </h1>
-        <p className="text-base sm:text-lg text-black/70 max-w-3xl">
-          Change cooling technology, water source, or capacity and instantly
-          see how the screening changes. Every scenario is recomputed from
-          scratch — no guesswork.
+        <p className="text-sm text-[var(--nb-muted)] mt-1 max-w-3xl">
+          Change a parameter and the full screening is recomputed from scratch. Compare
+          the outcome against the baseline below.
         </p>
-      </motion.div>
+      </header>
 
-      {/* Baseline summary card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="nb-card p-4 sm:p-6"
-        style={{ background: "var(--ink)", color: "var(--paper)" }}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5">
-          <div className="col-span-2 md:col-span-1">
-            <div className="text-xs uppercase tracking-wider text-white/60 mb-1">Baseline project</div>
-            <div className="text-lg sm:text-xl font-extrabold leading-tight break-words">{analysis.projectName}</div>
-          </div>
+      {/* Baseline. The reference every scenario is measured against. */}
+      <div className="nb-card p-4 sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-[10px] sm:text-xs uppercase tracking-wider text-white/60 mb-1">Daily water</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-[var(--accent-yellow)]">
-              {Number(baselineKl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              <span className="text-xs sm:text-base text-white/70 ml-1">kL/day</span>
+            <div className="nb-eyebrow">Baseline</div>
+            <div className="text-lg font-extrabold break-words">{analysis.projectName}</div>
+            <div className="mt-1">
+              <StatusChip tone={classificationTone(baselineClass)}>
+                {baselineClass}
+              </StatusChip>
             </div>
           </div>
-          <div>
-            <div className="text-[10px] sm:text-xs uppercase tracking-wider text-white/60 mb-1">Annual water</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-[var(--accent-green)]">
-              {Number(baselineMcm).toFixed(3)}
-              <span className="text-xs sm:text-base text-white/70 ml-1">MCM/yr</span>
-            </div>
-          </div>
-          <div className="col-span-2 md:col-span-1">
-            <div className="text-[10px] sm:text-xs uppercase tracking-wider text-white/60 mb-1">Classification</div>
-            <div className="text-sm sm:text-base font-bold leading-tight">{baselineCls}</div>
-          </div>
+          <Metric
+            label="Total water demand"
+            value={kl(baseline.waterKlPerDay)}
+            unit="kL/day"
+            note={`${baseline.waterMcmPerYear.toFixed(3)} MCM/year, ${baseline.waterMld.toFixed(2)} MLD`}
+          />
         </div>
-      </motion.div>
+      </div>
 
-      {/* Best / worst comparison (only if 2+ scenarios) */}
-      {scenarios.length >= 2 && best && worst && best.id !== worst.id && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5"
-        >
-          <ComparisonCard label="Lowest water demand" scenario={best} baselineKl={baselineKl} icon={TrendingDown} color="var(--status-feasible)" />
-          <ComparisonCard label="Highest water demand" scenario={worst} baselineKl={baselineKl} icon={TrendingUp} color="var(--status-constraint)" />
-        </motion.div>
-      )}
+      {/* Presets */}
+      <div className="nb-card p-4 sm:p-5">
+        <div className="flex items-center gap-2 border-b-2 border-black pb-1.5 mb-3">
+          <Zap className="w-4 h-4" />
+          <h2 className="nb-section-title">Mitigation presets</h2>
+        </div>
+        <p className="text-sm text-[var(--nb-muted)] mb-3">
+          Each preset is a change to the submitted parameters, recomputed by the same
+          engine. Disabled presets are already the current configuration.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+          {presets.map((preset) => (
+            <button
+              key={preset.key}
+              onClick={preset.run}
+              disabled={!preset.enabled || running !== null}
+              className="text-left border-[3px] border-black p-3 bg-[var(--paper)] hover:bg-[var(--nb-tint)] disabled:opacity-45 disabled:hover:bg-[var(--paper)] disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-1.5 text-sm font-bold">
+                {running === preset.key ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : null}
+                {preset.label}
+              </div>
+              <div className="text-xs text-[var(--nb-muted)] mt-0.5 font-mono">
+                {preset.note}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* What-if builder + saved scenarios */}
       <WhatIfPanel />
 
-      {/* All scenarios as a chart-style summary */}
-      {scenarios.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="nb-card p-4 sm:p-6"
-        >
-          <div className="flex items-center gap-2 mb-3 sm:mb-4">
-            <BarChart3 className="w-5 h-5" />
-            <h2 className="text-lg sm:text-xl font-extrabold">All scenarios vs baseline</h2>
-          </div>
-          <div className="space-y-2">
-            {/* Baseline bar */}
-            <ScenarioBar label="Baseline" kL={baselineKl} baselineKl={baselineKl} isBaseline />
-            {scenarios.map((s) => (
-              <ScenarioBar
-                key={s.id}
-                label={s.label}
-                kL={(s.result.waterDemand as { waterKlPerDay: number }).waterKlPerDay}
-                baselineKl={baselineKl}
+      {rows.length === 0 ? (
+        <div className="nb-card-flat p-4 flex items-start gap-3 bg-[var(--nb-tint)]">
+          <p className="text-sm text-[var(--nb-muted)] max-w-2xl">
+            No scenarios yet. Apply a preset above, or use the form to change IT load,
+            PUE, WUE, cooling technology or water source.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Comparison table */}
+          <SectionShell
+            id="comparison"
+            title="Baseline compared with each scenario"
+            description="Every value is recalculated by the screening engine. Select a row to see the before and after."
+          >
+            <DataTable
+              columns={[
+                {
+                  key: "label",
+                  header: "Scenario",
+                  render: (row) => (
+                    <button
+                      onClick={() => setSelected(row.scenario.id)}
+                      className={`text-left font-semibold underline-offset-2 ${
+                        active?.scenario.id === row.scenario.id
+                          ? "underline decoration-2"
+                          : "hover:underline"
+                      }`}
+                    >
+                      {row.scenario.label}
+                    </button>
+                  ),
+                },
+                {
+                  key: "daily",
+                  header: "Water demand (kL/day)",
+                  align: "right",
+                  render: (row) => (
+                    <span className="font-mono font-bold">{kl(row.water.waterKlPerDay)}</span>
+                  ),
+                },
+                {
+                  key: "annual",
+                  header: "Annual (MCM/yr)",
+                  align: "right",
+                  render: (row) => (
+                    <span className="font-mono">{row.water.waterMcmPerYear.toFixed(3)}</span>
+                  ),
+                },
+                {
+                  key: "mld",
+                  header: "MLD",
+                  align: "right",
+                  render: (row) => (
+                    <span className="font-mono">{row.water.waterMld.toFixed(2)}</span>
+                  ),
+                },
+                {
+                  key: "energy",
+                  header: "Facility energy (MWh/day)",
+                  align: "right",
+                  render: (row) => (
+                    <span className="font-mono">
+                      {row.water.facilityEnergyMwhPerDay.toFixed(0)}
+                    </span>
+                  ),
+                },
+                {
+                  key: "change",
+                  header: "Change",
+                  align: "right",
+                  render: (row) => <ChangeCell percent={row.percent} />,
+                },
+                {
+                  key: "outcome",
+                  header: "Screening outcome",
+                  render: (row) => (
+                    <StatusChip tone={classificationTone(row.classification)}>
+                      {row.classification}
+                    </StatusChip>
+                  ),
+                },
+              ]}
+              rows={rows}
+              rowKey={(row) => row.scenario.id}
+            />
+          </SectionShell>
+
+          {/* Reduction chart */}
+          <SectionShell
+            id="reduction"
+            title="Total water demand reduction"
+            description="How much total water demand each intervention removes, against the baseline."
+          >
+            <div className="space-y-2">
+              <Bar
+                label="Baseline"
+                value={baseline.waterKlPerDay}
+                max={maxDemand}
+                isBaseline
               />
-            ))}
-          </div>
-        </motion.div>
+              {rows.map((row) => (
+                <Bar
+                  key={row.scenario.id}
+                  label={row.scenario.label}
+                  value={row.water.waterKlPerDay}
+                  max={maxDemand}
+                  highlight={active?.scenario.id === row.scenario.id}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-[var(--nb-muted)] mt-3 leading-relaxed">
+              This is total water demand. The screening does not split demand into
+              freshwater and reclaimed components, so no freshwater-specific reduction is
+              shown.
+            </p>
+          </SectionShell>
+
+          {/* Before and after */}
+          {active && (
+            <SectionShell
+              id="before-after"
+              title={`Before and after: ${active.scenario.label}`}
+              description="What this intervention changed."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ComparisonColumn
+                  title="Baseline"
+                  classification={baselineClass}
+                  water={baseline}
+                  delta={null}
+                />
+                <ComparisonColumn
+                  title={active.scenario.label}
+                  classification={active.classification}
+                  water={active.water}
+                  delta={active}
+                />
+              </div>
+
+              <dl className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t-2 border-black pt-4">
+                <Figure
+                  label="Water demand saved"
+                  value={`${kl(Math.abs(active.delta))} kL/day`}
+                  note={
+                    active.delta <= 0 ? "a reduction" : "an increase against baseline"
+                  }
+                />
+                <Figure
+                  label="Change"
+                  value={`${active.percent >= 0 ? "+" : ""}${active.percent.toFixed(1)}%`}
+                />
+                <Figure
+                  label="Screening outcome"
+                  value={
+                    active.classification === baselineClass
+                      ? "Unchanged"
+                      : `Changed to ${active.classification}`
+                  }
+                  note={
+                    active.classification === baselineClass
+                      ? "The rules produced the same classification."
+                      : "The rules produced a different classification."
+                  }
+                />
+              </dl>
+            </SectionShell>
+          )}
+        </>
       )}
 
-      {scenarios.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="nb-card-flat p-4 sm:p-6 flex items-start gap-3"
-          style={{ background: "var(--accent-yellow)" }}
+      {/* Recommendations, derived from findings rather than authored. */}
+      {reportInput && (
+        <SectionShell
+          id="recommendations"
+          title="Pre-development recommendations"
+          description="Generated from the structured findings of this screening."
         >
-          <FlaskConical className="w-5 h-5 mt-0.5 shrink-0" />
-          <p className="text-base">
-            <strong>Get started:</strong> Use the form above to run your first
-            what-if scenario — try switching cooling technology or water source
-            to see the impact on water demand and screening classification.
+          <ol className="space-y-2">
+            {buildRecommendations(
+              analysis as never,
+              reportInput.project,
+            ).map((item, index) => (
+              <li key={index} className="flex gap-3">
+                <span className="shrink-0 w-6 h-6 border-2 border-black bg-[var(--nb-tint)] flex items-center justify-center text-xs font-bold">
+                  {index + 1}
+                </span>
+                <span className="text-sm leading-relaxed pt-0.5">{item}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-[var(--nb-muted)] mt-3 leading-relaxed">
+            Suggested next steps derived from this screening. They are not legal
+            requirements and do not establish compliance.
           </p>
-        </motion.div>
+        </SectionShell>
       )}
     </div>
   );
 }
 
-function ComparisonCard({
-  label, scenario, baselineKl, icon: Icon, color,
+function ChangeCell({ percent }: { percent: number }) {
+  const Icon =
+    percent < -0.05 ? TrendingDown : percent > 0.05 ? TrendingUp : Minus;
+  return (
+    <span
+      className="font-mono font-bold inline-flex items-center gap-1 justify-end"
+      style={{
+        color:
+          percent < -0.05
+            ? "var(--status-feasible)"
+            : percent > 0.05
+              ? "var(--status-constraint)"
+              : "var(--ink)",
+      }}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {percent >= 0 ? "+" : ""}
+      {percent.toFixed(1)}%
+    </span>
+  );
+}
+
+/**
+ * One horizontal bar. A single ink fill, with the selected scenario outlined
+ * rather than recoloured, so the chart reads as one series.
+ */
+function Bar({
+  label,
+  value,
+  max,
+  isBaseline,
+  highlight,
 }: {
   label: string;
-  scenario: ScenarioResult;
-  baselineKl: number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
+  value: number;
+  max: number;
+  isBaseline?: boolean;
+  highlight?: boolean;
 }) {
-  const w = scenario.result.waterDemand as { waterKlPerDay: number; waterMcmPerYear: number };
-  const cls = scenario.result.classification.classification;
-  const deltaPct = ((w.waterKlPerDay - baselineKl) / baselineKl) * 100;
-
+  const percent = max > 0 ? Math.max(2, (value / max) * 100) : 0;
   return (
-    <div className="nb-card-flat p-4 sm:p-5" style={{ background: color }}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-5 h-5" />
-        <div className="text-xs font-extrabold uppercase tracking-wider">{label}</div>
+    <div className="flex items-center gap-3">
+      <div
+        className="w-28 sm:w-44 text-xs font-semibold truncate shrink-0"
+        title={label}
+      >
+        {label}
       </div>
-      <div className="text-xl sm:text-2xl font-extrabold mb-1 break-words">{scenario.label}</div>
-      <div className="text-xs sm:text-sm opacity-80 mb-3">{cls}</div>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 text-sm">
-        <div>
-          <div className="text-[10px] sm:text-xs opacity-70 uppercase">Daily</div>
-          <div className="font-bold text-base sm:text-lg">
-            {Number(w.waterKlPerDay).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </div>
-        </div>
-        <div>
-          <div className="text-[10px] sm:text-xs opacity-70 uppercase">Annual</div>
-          <div className="font-bold text-base sm:text-lg">{Number(w.waterMcmPerYear).toFixed(3)}</div>
-        </div>
-        <div>
-          <div className="text-[10px] sm:text-xs opacity-70 uppercase">Δ vs base</div>
-          <div className="font-bold text-base sm:text-lg">
-            {deltaPct > 0 ? "+" : ""}{deltaPct.toFixed(1)}%
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScenarioBar({ label, kL, baselineKl, isBaseline }: { label: string; kL: number; baselineKl: number; isBaseline?: boolean }) {
-  const pct = Math.min(100, Math.max(8, (kL / Math.max(kL, baselineKl)) * 100));
-  const deltaPct = ((kL - baselineKl) / baselineKl) * 100;
-  const barColor = isBaseline
-    ? "var(--ink)"
-    : kL < baselineKl
-      ? "var(--status-feasible)"
-      : kL > baselineKl
-        ? "var(--status-constraint)"
-        : "var(--status-conditional)";
-
-  return (
-    <div className="flex items-center gap-2 sm:gap-3">
-      <div className="w-24 sm:w-40 text-xs sm:text-sm font-bold truncate shrink-0" title={label}>{label}</div>
-      <div className="flex-1 border-[2px] border-black h-8 sm:h-9 bg-[var(--paper)] relative overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="h-full flex items-center justify-end pr-1 sm:pr-2"
-          style={{ background: barColor }}
+      <div
+        className={`flex-1 h-8 bg-[var(--paper)] relative ${
+          highlight ? "border-[3px] border-black" : "border-2 border-[var(--nb-rule)]"
+        }`}
+      >
+        <div
+          className="h-full flex items-center justify-end pr-2"
+          style={{
+            width: `${percent}%`,
+            background: isBaseline ? "var(--ink)" : "var(--nb-muted)",
+          }}
         >
           <span className="text-[10px] sm:text-xs font-bold text-white whitespace-nowrap">
-            {Number(kL).toLocaleString(undefined, { maximumFractionDigits: 0 })} kL
+            {kl(value)} kL
           </span>
-        </motion.div>
-      </div>
-      <div className="w-14 sm:w-20 text-right text-[10px] sm:text-sm font-mono font-bold" style={{ color: isBaseline ? "var(--ink)" : deltaPct < 0 ? "var(--status-feasible)" : deltaPct > 0 ? "var(--status-constraint)" : "var(--ink)" }}>
-        {isBaseline ? "base" : `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(0)}%`}
+        </div>
       </div>
     </div>
   );
 }
+
+function ComparisonColumn({
+  title,
+  classification,
+  water,
+  delta,
+}: {
+  title: string;
+  classification: string;
+  water: WaterReading;
+  delta: { percent: number } | null;
+}) {
+  return (
+    <div className="nb-card-flat p-4">
+      <div className="nb-eyebrow mb-1">{title}</div>
+      <div className="font-extrabold text-lg leading-tight mb-1">{kl(water.waterKlPerDay)} kL/day</div>
+      <div className="text-xs text-[var(--nb-muted)] font-mono mb-2">
+        {water.waterMcmPerYear.toFixed(3)} MCM/year
+      </div>
+      <StatusChip tone={classificationTone(classification)}>{classification}</StatusChip>
+      {delta && <ChangeCell percent={delta.percent} />}
+    </div>
+  );
+}
+
+function Figure({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="nb-metric-label">{label}</dt>
+      <dd className="mt-0.5 font-bold text-lg leading-tight break-words">{value}</dd>
+      {note && <dd className="text-xs text-[var(--nb-muted)] mt-0.5">{note}</dd>}
+    </div>
+  );
+}
+
+export type { ScenarioResult };

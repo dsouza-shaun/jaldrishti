@@ -3,6 +3,7 @@
  */
 
 import { create } from "zustand";
+import type { Role } from "@/lib/auth/constants";
 
 export interface ProjectInput {
   projectName: string;
@@ -59,6 +60,47 @@ export interface ScenarioResult {
   result: AnalysisResult;
 }
 
+/**
+ * The screens the shell can render.
+ *
+ * `home`, `analyze`, `dashboard`, `scenarios` and `about` are reached from the
+ * state-based switcher on `/`. `report`, `explanation` and `authority` also
+ * have real routes, so they can be linked to and reloaded directly.
+ */
+export type ViewKey =
+  | "home"
+  | "analyze"
+  | "dashboard"
+  | "scenarios"
+  | "report"
+  | "explanation"
+  | "authority"
+  | "about";
+
+/**
+ * The submitted project row, as the server stored it.
+ *
+ * The analysis result does not carry the inputs, but the dashboard and the
+ * report both need them to show how the water demand was derived, so they are
+ * kept alongside the result rather than read back out of the form.
+ */
+export interface ProjectInputs {
+  id: string;
+  projectName: string;
+  latitude: number;
+  longitude: number;
+  itLoad: number;
+  pue: number;
+  wue: number;
+  coolingType: string;
+  builtUpArea: number | null;
+  landTenure: string;
+  proposedWaterSource: string;
+  alternativeWaterSource: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
 interface JalDrishtiState {
   // Inputs
   form: ProjectInput;
@@ -71,6 +113,10 @@ interface JalDrishtiState {
 
   analysis: AnalysisResult | null;
   setAnalysis: (a: AnalysisResult | null) => void;
+
+  // Submitted inputs for the project currently on screen.
+  project: ProjectInputs | null;
+  setProject: (p: ProjectInputs | null) => void;
 
   analyzing: boolean;
   setAnalyzing: (b: boolean) => void;
@@ -94,9 +140,20 @@ interface JalDrishtiState {
   activeTab: "dashboard" | "whatif" | "evidence" | "rules";
   setActiveTab: (t: JalDrishtiState["activeTab"]) => void;
 
-  // View router (state-based, single Next.js route)
-  view: "home" | "analyze" | "dashboard" | "scenarios" | "about";
-  setView: (v: JalDrishtiState["view"]) => void;
+  // Signed-in account, hydrated from /api/auth/me after sign-in.
+  user: { username: string; displayName: string; role: Role; organisation: string | null } | null;
+  setUser: (u: JalDrishtiState["user"]) => void;
+
+  // Dashboard presentation. "tabs" shows one section at a time behind a
+  // horizontal tab strip; "sections" stacks every section in reading order.
+  // The user chooses, and the choice is remembered across reloads.
+  dashboardLayout: "tabs" | "sections";
+  setDashboardLayout: (m: JalDrishtiState["dashboardLayout"]) => void;
+
+  // View router. The five original screens are switched inside `/`; the three
+  // that also own a real route pass their key in through the app shell.
+  view: ViewKey;
+  setView: (v: ViewKey) => void;
 }
 
 const DEFAULT_FORM: ProjectInput = {
@@ -125,6 +182,9 @@ export const useJalDrishti = create<JalDrishtiState>((set) => ({
   analysis: null,
   setAnalysis: (a) => set({ analysis: a }),
 
+  project: null,
+  setProject: (p) => set({ project: p }),
+
   analyzing: false,
   setAnalyzing: (b) => set({ analyzing: b }),
 
@@ -142,6 +202,12 @@ export const useJalDrishti = create<JalDrishtiState>((set) => ({
 
   activeTab: "dashboard",
   setActiveTab: (t) => set({ activeTab: t }),
+
+  user: null,
+  setUser: (u) => set({ user: u }),
+
+  dashboardLayout: "tabs",
+  setDashboardLayout: (m) => set({ dashboardLayout: m }),
 
   view: "home",
   setView: (v) => set({ view: v }),

@@ -1,10 +1,24 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { ShieldAlert, BookOpen } from "lucide-react";
-import { EvidenceBadge } from "./GroundwaterPanel";
+import { DataTable, StatusChip, evidenceTone } from "@/components/jaldrishti/Document";
 
+interface RuleRow {
+  key: string;
+  label: string;
+  outcome: string;
+  reasons: string[];
+  hardConstraint: boolean;
+  source: string;
+  sourceDate: string;
+  evidenceStatus: string;
+}
+
+/**
+ * The three rule engines as a scannable table: what was checked, what came
+ * back, how binding it is, and which rule produced it. Reasons stay attached
+ * to their row so the outcome is never a bare label.
+ */
 export function RegulatoryPanel() {
   const { analysis } = useJalDrishti();
   if (!analysis) return null;
@@ -15,62 +29,76 @@ export function RegulatoryPanel() {
     spcb: { outcome: string; reasons: string[]; hardConstraint: boolean; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
   };
 
-  const rows = [
-    { key: "cgwa", label: "CGWA / Groundwater NOC", data: reg.cgwa },
-    { key: "ec",   label: "Environmental Clearance", data: reg.ec },
-    { key: "spcb", label: "SPCB Consent (CTE/CTO)", data: reg.spcb },
-  ];
+  const rows: RuleRow[] = [
+    { key: "cgwa", label: "Groundwater extraction (CGWA NOC)", data: reg.cgwa },
+    { key: "ec", label: "Environmental clearance", data: reg.ec },
+    { key: "spcb", label: "Consent to establish and operate (SPCB)", data: reg.spcb },
+  ].map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    outcome: entry.data.outcome,
+    reasons: entry.data.reasons,
+    hardConstraint: entry.data.hardConstraint,
+    source: entry.data.provenance.source,
+    sourceDate: entry.data.provenance.sourceDate,
+    evidenceStatus: entry.data.provenance.evidenceStatus,
+  }));
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4" />
-          <h3 className="text-sm font-extrabold uppercase tracking-tight">Regulatory Exposure</h3>
-        </div>
-        <span className="text-[10px] font-mono text-black/60">3 rule engines</span>
-      </div>
-
-      <div className="space-y-2">
-        {rows.map((r) => (
-          <div key={r.key} className="border-[2px] border-black bg-[var(--paper)]">
-            <div className="flex items-stretch">
-              <div
-                className="px-2 py-1.5 text-[10px] font-extrabold uppercase tracking-wider border-r-[2px] border-black flex items-center"
-                style={{
-                  background:
-                    r.data.hardConstraint ? "var(--accent-red)" :
-                    r.data.outcome.includes("CONDITION") || r.data.outcome.includes("APPLICABLE") || r.data.outcome.includes("REQUIRED") ? "var(--accent-yellow)" :
-                    r.data.outcome.includes("INSUFFICIENT") ? "var(--status-unknown)" :
-                    "var(--accent-green)",
-                  minWidth: 110,
-                }}
-              >
-                {r.label}
-              </div>
-              <div className="flex-1 p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-extrabold text-sm uppercase">{r.data.outcome}</div>
-                  <EvidenceBadge status={r.data.provenance.evidenceStatus} />
-                </div>
+    <DataTable
+      columns={[
+        { key: "label", header: "Check", render: (row) => <span className="font-semibold">{row.label}</span> },
+        {
+          key: "outcome",
+          header: "Outcome",
+          render: (row) => (
+            <div>
+              <div className="font-bold uppercase text-sm">{row.outcome}</div>
+              {row.reasons.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
-                  {r.data.reasons.map((reason, i) => (
-                    <li key={i} className="text-[11px] text-black/80 leading-snug">· {reason}</li>
+                  {row.reasons.map((reason, index) => (
+                    <li key={index} className="text-xs text-[var(--nb-muted)] leading-snug">
+                      {reason}
+                    </li>
                   ))}
                 </ul>
-                <div className="mt-1 text-[9px] font-mono text-black/60 flex items-center gap-1">
-                  <BookOpen className="w-2.5 h-2.5" />
-                  {r.data.provenance.source} · {r.data.provenance.sourceDate}
-                </div>
-              </div>
+              )}
             </div>
-          </div>
-        ))}
-      </div>
-    </motion.section>
+          ),
+        },
+        {
+          key: "binding",
+          header: "Binding",
+          render: (row) =>
+            row.hardConstraint ? (
+              <StatusChip tone="constraint">Hard</StatusChip>
+            ) : (
+              <StatusChip tone="neutral">Soft</StatusChip>
+            ),
+        },
+        {
+          key: "status",
+          header: "Evidence",
+          render: (row) => (
+            <StatusChip tone={evidenceTone(row.evidenceStatus)}>
+              {row.evidenceStatus === "VERIFIED" ? "Sourced" : row.evidenceStatus === "PROXY" ? "Modelled" : "Limited"}
+            </StatusChip>
+          ),
+        },
+        {
+          key: "source",
+          header: "Reference",
+          render: (row) => (
+            <span className="text-xs text-[var(--nb-muted)] leading-snug">
+              {row.source}
+              <br />
+              {row.sourceDate}
+            </span>
+          ),
+        },
+      ]}
+      rows={rows}
+      rowKey={(row) => row.key}
+    />
   );
 }

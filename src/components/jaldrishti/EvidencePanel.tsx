@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { ShieldCheck, Database, Link2, Bolt } from "lucide-react";
 import { EvidenceBadge, EVIDENCE_META } from "./GroundwaterPanel";
@@ -255,19 +254,15 @@ export function EvidencePanel() {
   }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
+    <div>
+      <div className="flex items-center justify-between border-b-2 border-black pb-1.5 mb-3">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4" />
           <h3 className="text-sm font-extrabold uppercase tracking-tight">Data sources</h3>
         </div>
       </div>
 
-      <div className="max-h-[280px] overflow-y-auto nb-scroll border-[2px] border-black">
+      <div className="max-h-[360px] overflow-y-auto nb-scroll border-2 border-[var(--nb-rule)]">
         <table className="w-full text-xs">
           <thead className="bg-black text-[var(--paper)] text-[9px] uppercase tracking-wider sticky top-0">
             <tr>
@@ -280,7 +275,7 @@ export function EvidencePanel() {
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={row.key} className={i % 2 === 0 ? "bg-[var(--paper)]" : "bg-[var(--muted)]"}>
+              <tr key={row.key} className={i % 2 === 0 ? "bg-[var(--paper)]" : "bg-[var(--nb-tint)]"}>
                 <td className="p-2 font-bold">
                   <span className="flex items-center gap-1">
                     {row.category === "data" ? <Database className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
@@ -301,13 +296,13 @@ export function EvidencePanel() {
         {(["VERIFIED", "PROXY", "UNKNOWN"] as const).map((status) => {
           const meta = EVIDENCE_META[status];
           return (
-            <div key={status} className="flex items-start gap-2 border-[2px] border-black bg-[var(--paper)] p-2">
-              <span className="nb-badge shrink-0" style={{ background: meta.color }}>{meta.label}</span>
-              <p className="text-[10px] leading-snug text-black/70">{meta.explanation}</p>
+            <div key={status} className="flex items-start gap-2 border-2 border-[var(--nb-rule)] bg-[var(--paper)] p-2">
+              <EvidenceBadge status={status} />
+              <p className="text-[10px] leading-snug text-[var(--nb-muted)]">{meta.explanation}</p>
             </div>
           );
         })}
       </div>
-    </motion.section>
+    </div>
   );
 }

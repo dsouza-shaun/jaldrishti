@@ -171,9 +171,53 @@ try {
   $env:DATABASE_URL = "file:$($templateDb.Replace('\', '/'))"
   & $prisma db push --schema (Join-Path $repo "prisma\schema.prisma") --skip-generate
   if ($LASTEXITCODE -ne 0) { throw "Could not create the SQLite database template." }
+
+  # Sign-in is mandatory, so the template must ship with accounts already in it.
+  # An empty template would produce an install that redirects every page to
+  # /login and then rejects every credential, with no way for a user to recover
+  # short of a reinstall. Seeding is idempotent, so this is safe to re-run.
+  Write-Host "Seeding demo accounts into the database template"
+  & npx tsx (Join-Path $repo "prisma\seed.ts")
+  if ($LASTEXITCODE -ne 0) { throw "Could not seed the database template." }
 } finally {
   $env:DATABASE_URL = $previousDatabaseUrl
 }
+
+# Verify the template really is usable before it is packaged. Failing here is
+# far better than shipping an install that redirects to /login and then rejects
+# every credential the operator was told about.
+$verifyScript = @'
+const { PrismaClient } = require("@prisma/client");
+const db = new PrismaClient();
+(async () => {
+  try {
+    const users = await db.user.findMany({ select: { username: true, role: true } });
+    const hasDeveloper = users.some((u) => u.role === "DEVELOPER");
+    const hasAuthority = users.some((u) => u.role === "AUTHORITY");
+    console.log(JSON.stringify({ count: users.length, hasDeveloper, hasAuthority }));
+  } catch (error) {
+    console.log(JSON.stringify({ count: 0, hasDeveloper: false, hasAuthority: false, error: String(error) }));
+  } finally {
+    await db.$disconnect();
+  }
+})();
+'@
+$verifyPath = Join-Path $stage "verify-template.cjs"
+Write-Utf8NoBom $verifyPath $verifyScript
+$verifyDatabaseUrl = $env:DATABASE_URL
+try {
+  # Point the check at the template, not at whatever the build machine happens
+  # to have in .env, otherwise this verifies the wrong file entirely.
+  $env:DATABASE_URL = "file:$($templateDb.Replace('\', '/'))"
+  $verifyJson = & node $verifyPath
+} finally {
+  $env:DATABASE_URL = $verifyDatabaseUrl
+}
+$verified = $verifyJson | ConvertFrom-Json
+if ($verified.count -lt 1 -or -not $verified.hasDeveloper -or -not $verified.hasAuthority) {
+  throw "The database template has no usable accounts (Developer and Authority are both required). Refusing to build an installer that cannot be signed in to."
+}
+Write-Host "Database template verified: $($verified.count) account(s), both roles present."
 
 $launcher = @'
 const fs = require("node:fs");
@@ -222,6 +266,25 @@ function looksLikeSqlite(file) {
   }
 }
 
+// SQLite stores the schema as plain SQL text inside the database file, so the
+// presence of a table can be probed with a byte search and no driver. This
+// matters because the installer keeps its AppId, so an install over an older
+// build finds the previous database already in place and would otherwise run
+// against a file that has no User, Session or Review tables. Sign-in is
+// mandatory, so that is an install nobody can get past /login.
+//
+// The old file is quarantined rather than deleted, so nothing is destroyed
+// before the cause is understood.
+function hasCurrentSchema(file) {
+  const REQUIRED = ['CREATE TABLE "User"', 'CREATE TABLE "Session"', 'CREATE TABLE "Review"'];
+  try {
+    const contents = fs.readFileSync(file, "latin1");
+    return REQUIRED.every((needle) => contents.includes(needle));
+  } catch {
+    return false;
+  }
+}
+
 if (!looksLikeSqlite(db)) {
   const reason = !fs.existsSync(db)
     ? "no database present"
@@ -245,6 +308,18 @@ if (!looksLikeSqlite(db)) {
   }
   if (!looksLikeSqlite(db)) {
     console.error("JalDrishti: the restored database is still unreadable; the app cannot save projects.");
+  }
+} else if (!hasCurrentSchema(db)) {
+  const quarantine = `${db}.outdated-${Date.now()}`;
+  try {
+    fs.renameSync(db, quarantine);
+    fs.copyFileSync(template, db);
+    console.log("JalDrishti: this database predates the current version and was replaced.");
+    console.log(`             The previous file was kept as ${path.basename(quarantine)}.`);
+    console.log("             Projects in it are not carried over; re-create them and re-run the screening.");
+  } catch (error) {
+    console.error("JalDrishti: could not upgrade the application database:", error.message);
+    console.error("             Accounts may be unavailable until the app is reinstalled.");
   }
 }
 
@@ -315,7 +390,7 @@ $iss = @"
 [Setup]
 AppId={{8C7B13B6-987A-4B25-A5D9-0C5D37A12175}
 AppName=JalDrishti
-AppVersion=0.2.1
+AppVersion=0.3.0
 DefaultDirName={localappdata}\Programs\JalDrishti
 DefaultGroupName=JalDrishti
 PrivilegesRequired=lowest

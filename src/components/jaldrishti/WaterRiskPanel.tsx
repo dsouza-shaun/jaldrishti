@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   Droplets,
   Mountain,
@@ -87,12 +86,16 @@ interface WaterRiskShape {
   } | null;
 }
 
-/** Aqueduct scores run 0-5. Map them to the app's existing risk palette. */
+/**
+ * Aqueduct scores run 0-5. They map onto the same four status tones the
+ * screening result uses, so a risk figure and a classification are read with
+ * one vocabulary rather than two.
+ */
 function riskColor(score: number | null): string {
   if (score === null) return "var(--status-unknown)";
-  if (score >= 4) return "var(--accent-red)";
-  if (score >= 3) return "var(--accent-orange)";
-  if (score >= 2) return "var(--accent-yellow)";
+  if (score >= 4) return "var(--status-constraint)";
+  if (score >= 3) return "var(--status-insufficient)";
+  if (score >= 2) return "var(--status-conditional)";
   if (score >= 1) return "var(--status-conditional)";
   return "var(--status-feasible)";
 }
@@ -133,7 +136,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-[2px] border-black bg-[var(--paper)] p-3">
+    <div className="border-t border-[var(--nb-rule)] pt-3 first:border-t-0 first:pt-0">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-tight">
           {icon}
@@ -161,37 +164,23 @@ export function WaterRiskPanel() {
 
   if (!aqueduct?.available && !district?.available && !elevation?.available) {
     return (
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="nb-card p-4"
-      >
-        <div className="flex items-center gap-2 border-b-[2px] border-black pb-2">
-          <Droplets className="h-4 w-4" />
-          <h3 className="text-sm font-extrabold uppercase tracking-tight">Live Water Risk</h3>
-        </div>
-        <p className="mt-2 text-xs text-black/70">
-          No live water-risk source responded for this site. Nothing is being
-          inferred in their absence.
-        </p>
-      </motion.section>
+      <p className="text-sm text-[var(--nb-muted)]">
+        No live water-risk source responded for this site. Nothing is being inferred in
+        their absence.
+      </p>
     );
   }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4 h-full flex flex-col"
-    >
-      <div className="flex items-center justify-between gap-2 border-b-[2px] border-black pb-2">
+    <div>
+      <div className="flex items-center justify-between gap-2 border-b-2 border-black pb-1.5 mb-3">
         <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-tight">
           <Droplets className="h-4 w-4" /> Live water risk
         </h3>
-        <span className="text-[10px] font-mono text-black/60">live services</span>
+        <span className="text-[10px] font-mono text-[var(--nb-muted)]">live services</span>
       </div>
 
-      <div className="mt-3 flex-1 space-y-3">
+      <div className="space-y-3">
         {/* Aqueduct sector weighting — the headline for a data-centre screen. */}
         {aqueduct?.available && (semiconductors || electricPower) && (
           <Section
@@ -205,10 +194,7 @@ export function WaterRiskPanel() {
               power</strong> below, not under the all-sector average.
             </p>
             {[semiconductors, electricPower].filter(Boolean).map((sector) => (
-              <div
-                key={sector!.code}
-                className="mb-2 border-2 border-black bg-[var(--paper)] p-2 last:mb-0"
-              >
+              <div key={sector!.code} className="mb-2 last:mb-0">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[11px] font-extrabold uppercase">
                     {sector!.label}
@@ -424,6 +410,6 @@ export function WaterRiskPanel() {
           </Section>
         )}
       </div>
-    </motion.section>
+    </div>
   );
 }

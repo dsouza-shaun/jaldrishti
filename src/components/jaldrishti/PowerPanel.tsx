@@ -1,8 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Factory, MapPin } from "lucide-react";
+import { DataTable, StatusChip, evidenceTone } from "@/components/jaldrishti/Document";
 
 interface NearbyPlant {
   id: string;
@@ -18,65 +17,73 @@ interface NearbyPlant {
   } | null;
 }
 
+/**
+ * Nearby power generation, as context for the site rather than as a screening
+ * finding. A nearby plant does not demonstrate grid capacity or connection
+ * feasibility, and the note says so.
+ */
 export function PowerPanel() {
   const { analysis } = useJalDrishti();
   if (!analysis) return null;
+
   const power = analysis.power as {
     timeline: string;
     substation: string | null;
     nearbyPowerPlants: NearbyPlant[];
-    provenance: {
-      source: string;
-      sourceDate: string;
-      evidenceStatus: string;
-      caveat?: string;
-    };
+    provenance: { source: string; sourceDate: string; evidenceStatus: string; caveat?: string };
   };
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
-        <h3 className="text-sm font-extrabold uppercase tracking-tight">
-          Nearest Power Plants
-        </h3>
+    <div className="space-y-2">
+      <DataTable
+        columns={[
+          { key: "name", header: "Plant", render: (plant) => <span className="text-sm font-semibold break-words">{plant.name}</span> },
+          {
+            key: "capacity",
+            header: "Capacity",
+            align: "right",
+            render: (plant) => (
+              <span className="text-sm font-mono">
+                {plant.capacityMw != null ? `${plant.capacityMw.toLocaleString("en-IN")} MW` : "Not available"}
+              </span>
+            ),
+          },
+          {
+            key: "fuel",
+            header: "Primary fuel",
+            render: (plant) => <span className="text-sm">{plant.primaryFuel ?? "Not recorded"}</span>,
+          },
+          {
+            key: "year",
+            header: "Data year",
+            align: "right",
+            render: (plant) => <span className="text-sm font-mono">{plant.capacityDataYear ?? "-"}</span>,
+          },
+          {
+            key: "distance",
+            header: "Distance",
+            align: "right",
+            render: (plant) => <span className="text-sm font-mono">{plant.distanceKm.toFixed(1)} km</span>,
+          },
+        ]}
+        rows={power.nearbyPowerPlants}
+        rowKey={(plant) => plant.id}
+        empty="No coordinate-bearing plant record is available for this site."
+      />
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--nb-muted)]">
+        <StatusChip tone={evidenceTone(power.provenance.evidenceStatus)}>
+          {power.provenance.evidenceStatus === "VERIFIED"
+            ? "Sourced"
+            : power.provenance.evidenceStatus === "PROXY"
+              ? "Modelled"
+              : "Limited"}
+        </StatusChip>
+        <span>
+          {power.provenance.source}, {power.provenance.sourceDate}. Nearby plants do not
+          demonstrate grid capacity or connection feasibility.
+        </span>
       </div>
-      {power.nearbyPowerPlants.length === 0 ? (
-        <div className="border-[2px] border-black p-3 text-xs font-mono">
-          No coordinate-bearing plant record available.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {power.nearbyPowerPlants.map((plant) => (
-            <div
-              key={plant.id}
-              className="border-[2px] border-black p-2 bg-[var(--paper)]"
-            >
-              <div className="flex items-start gap-2">
-                <Factory className="w-3 h-3 mt-0.5 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="font-extrabold text-xs break-words">
-                    {plant.name}
-                  </div>
-                  <div className="text-[10px] font-mono text-black/70">
-                    {plant.capacityMw != null
-                      ? `${plant.capacityMw.toLocaleString()} MW`
-                      : "Capacity unknown"}
-                    {plant.primaryFuel ? ` · ${plant.primaryFuel}` : ""}
-                    {plant.capacityDataYear ? ` · ${plant.capacityDataYear}` : ""}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] font-mono whitespace-nowrap">
-                  <MapPin className="w-3 h-3" /> {plant.distanceKm.toFixed(1)} km
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </motion.section>
+    </div>
   );
 }

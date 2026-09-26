@@ -6,7 +6,10 @@ import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 export function Footer() {
   const { setView } = useJalDrishti();
   return (
-    <footer className="mt-auto bg-[var(--ink)] text-[var(--paper)] border-t-[3px] border-black">
+    <footer
+      data-nb-chrome
+      className="mt-auto bg-[var(--ink)] text-[var(--paper)] border-t-[3px] border-black"
+    >
       <div className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8 py-8 sm:py-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
         {/* Brand */}
         <div className="sm:col-span-2 md:col-span-2">
@@ -28,22 +31,22 @@ export function Footer() {
 
         {/* Quick links */}
         <div>
-          <h4 className="text-sm font-extrabold uppercase tracking-wider text-[var(--accent-yellow)] mb-3">
+          <h4 className="text-sm font-extrabold uppercase tracking-wider text-[var(--paper)] mb-3">
             Explore
           </h4>
           <ul className="space-y-2 text-sm">
             <li>
-              <button onClick={() => setView("home")} className="text-white/80 hover:text-[var(--accent-yellow)] transition-colors">
+              <button onClick={() => setView("home")} className="text-white/80 hover:text-[var(--paper)] transition-colors">
                 Home
               </button>
             </li>
             <li>
-              <button onClick={() => setView("analyze")} className="text-white/80 hover:text-[var(--accent-yellow)] transition-colors">
+              <button onClick={() => setView("analyze")} className="text-white/80 hover:text-[var(--paper)] transition-colors">
                 Run a new analysis
               </button>
             </li>
             <li>
-              <button onClick={() => setView("about")} className="text-white/80 hover:text-[var(--accent-yellow)] transition-colors">
+              <button onClick={() => setView("about")} className="text-white/80 hover:text-[var(--paper)] transition-colors">
                 How it works
               </button>
             </li>
@@ -52,7 +55,7 @@ export function Footer() {
 
         {/* Outcomes */}
         <div>
-          <h4 className="text-sm font-extrabold uppercase tracking-wider text-[var(--accent-yellow)] mb-3">
+          <h4 className="text-sm font-extrabold uppercase tracking-wider text-[var(--paper)] mb-3">
             Outcomes
           </h4>
           <ul className="space-y-2 text-sm">

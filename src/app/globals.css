@@ -66,7 +66,8 @@
   --accent-pink:    #ff6ad5;
   --accent-teal:    #14b8a6;
 
-  /* Status colors */
+  /* Status colors. These are the ONLY colours that carry meaning, and they
+     are reserved for status chips and the screening result. */
   --status-feasible:      #3ad17f;
   --status-conditional:   #ffe24d;
   --status-insufficient:  #ff8c1a;
@@ -74,6 +75,15 @@
   --status-verified:      #3ad17f;
   --status-proxy:         #ffe24d;
   --status-unknown:       #b8b8b8;
+
+  /* Neutral ramp. Government-style document hierarchy is built from these
+     rather than from more accent colours: structural ink on paper, a hairline
+     rule for table separators, a faint tint for sub-panels, and two levels of
+     muted label text so metadata never competes with findings. */
+  --nb-rule:    #d8d2c0;
+  --nb-tint:    #f4f0e2;
+  --nb-muted:   #5c5c5c;
+  --nb-muted-2: #8a8a8a;
 
   --radius: 0px;
   --background: var(--sky);
@@ -260,6 +270,72 @@
   .nb-shadow-hard-lg {
     box-shadow: 10px 10px 0 0 var(--ink);
   }
+
+  /* ---- Document primitives ----------------------------------------------
+     Government-style reporting leans on ruled tables and labelled metric
+     blocks rather than nested cards, so the bulk of the dashboard, report and
+     review screens are built from these four classes. */
+
+  /* A section heading with the small uppercase eyebrow above it. */
+  .nb-section-title {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .nb-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--nb-muted);
+  }
+
+  /* Ruled data table. Hairline separators, no zebra fill, no card shadow. */
+  .nb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+    text-align: left;
+  }
+  .nb-table thead th {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--nb-muted);
+    border-bottom: 2px solid var(--ink);
+    padding: 0.5rem 0.75rem 0.5rem 0;
+    vertical-align: bottom;
+  }
+  .nb-table tbody td {
+    border-bottom: 1px solid var(--nb-rule);
+    padding: 0.6rem 0.75rem 0.6rem 0;
+    vertical-align: top;
+  }
+  .nb-table tbody tr:last-child td { border-bottom: none; }
+  .nb-table th:last-child,
+  .nb-table td:last-child { padding-right: 0; }
+
+  /* A metric block. Strong label, dominant value, quiet supporting line. */
+  .nb-metric-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--nb-muted);
+  }
+  .nb-metric-value {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .nb-metric-note {
+    font-size: 0.8125rem;
+    color: var(--nb-muted);
+  }
 }
 
 /* Marquee */
@@ -430,3 +506,66 @@
   100% { opacity: 1; transform: scale(1); }
 }
 .nb-pop-in { animation: nb-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* ============================================================
+   Print
+   The report page is designed to be printed directly from the
+   browser, so print drops the app chrome, the hard shadows and
+   the sky field, and forces black on white. Elements that should
+   not reach paper are opted out with .nb-no-print.
+   ============================================================ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm 18mm;
+  }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10.5pt;
+  }
+
+  /* App chrome never prints. */
+  header[data-nb-chrome],
+  footer[data-nb-chrome],
+  .nb-no-print {
+    display: none !important;
+  }
+
+  /* Hard shadows and the sky field are screen affordances only. */
+  .nb-card,
+  .nb-card-flat,
+  .nb-btn,
+  .nb-input {
+    box-shadow: none !important;
+    border-color: #000 !important;
+    background: #fff !important;
+  }
+  .nb-card:hover { transform: none !important; }
+
+  /* Let sections breathe and never split one across a page boundary. */
+  .nb-print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .nb-print-section + .nb-print-section {
+    margin-top: 8mm;
+  }
+  .nb-table thead th {
+    border-bottom: 1.5pt solid #000;
+  }
+  .nb-table tbody td {
+    border-bottom: 0.5pt solid #999;
+  }
+
+  /* Links have no meaning once detached from the page. */
+  a[href]::after { content: none !important; }
+
+  /* Keep colour fills legible in greyscale, since most reviewers print. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -1,317 +1,133 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { Search, ArrowRight, Droplets, Layers, ShieldCheck, FileSearch, Info } from "lucide-react";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import {
-  Droplets, Search, ShieldAlert, MapPin, Layers, Sparkles, ArrowRight,
-  CheckCircle2, AlertTriangle, HelpCircle, XOctagon,
-} from "lucide-react";
+import { StatusChip } from "@/components/jaldrishti/Document";
 
-const FEATURES = [
+/**
+ * The four screening lenses. One ink square each, no per-card colour, because
+ * colour on this page would compete with the result colours the user meets on
+ * the dashboard.
+ */
+const LENSES = [
   {
     icon: Droplets,
-    title: "Water demand modelling",
-    text: "Estimate the water your data centre may need each day and year from its size and cooling system.",
-    color: "var(--accent-red)",
+    title: "Water demand",
+    text: "Daily and annual demand calculated from IT load, PUE, WUE and the cooling technology, with the derivation shown.",
   },
   {
     icon: Layers,
-    title: "Spatial intelligence",
-    text: "See nearby forests, wetlands, protected areas and coastal zones before choosing a site.",
-    color: "var(--accent-green)",
+    title: "Environmental constraints",
+    text: "Overlap tested against eco-sensitive zones, forest, wetland and coastal regulation boundaries.",
   },
   {
-    icon: ShieldAlert,
+    icon: ShieldCheck,
     title: "Regulatory screening",
-    text: "Review important water, environmental and planning considerations early.",
-    color: "var(--accent-orange)",
+    text: "Groundwater extraction, environmental clearance and consent checks, each with its rule and its source.",
   },
   {
-    icon: Sparkles,
-    title: "Explainable results",
-    text: "Every classification comes with a full decision trail — from rule fired to underlying data and source.",
-    color: "var(--accent-purple)",
+    icon: FileSearch,
+    title: "Site evidence",
+    text: "Rainfall, groundwater and water-risk context, each marked as sourced, modelled or needing verification.",
   },
 ];
 
 const OUTCOMES = [
-  { icon: CheckCircle2, label: "Feasible", desc: "No constraints detected.", color: "var(--status-feasible)" },
-  { icon: AlertTriangle, label: "Feasible with conditions", desc: "Mitigations or approvals required.", color: "var(--status-conditional)" },
-  { icon: HelpCircle, label: "Data insufficient", desc: "Critical evidence missing.", color: "var(--status-insufficient)" },
-  { icon: XOctagon, label: "High constraint", desc: "Hard constraint — re-site or pursue clearance.", color: "var(--status-constraint)" },
+  { label: "Feasible", desc: "No constraint was triggered by the available evidence.", tone: "feasible" as const },
+  { label: "Feasible with conditions", desc: "Constraints were detected and must be addressed.", tone: "conditional" as const },
+  { label: "Data insufficient", desc: "Required evidence was unavailable, so no conclusion follows.", tone: "insufficient" as const },
+  { label: "High constraint", desc: "A hard constraint was triggered and further assessment is required.", tone: "constraint" as const },
 ];
 
 export function HomeView() {
   const { setView } = useJalDrishti();
 
   return (
-    <div className="space-y-10 sm:space-y-16 md:space-y-24 pb-12">
-      {/* ============================================================
-          HERO
-         ============================================================ */}
-      <section className="relative pt-6 sm:pt-10 md:pt-16 overflow-hidden">
-        {/* Floating decorative blobs - hidden on mobile to save space */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, type: "spring" }}
-          className="hidden md:block absolute top-10 right-10 w-24 h-24 bg-[var(--accent-yellow)] border-[3px] border-black rounded-full nb-bob shadow-[6px_6px_0_0_#000]"
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5, type: "spring" }}
-          className="hidden md:block absolute top-40 right-40 w-16 h-16 bg-[var(--accent-purple)] border-[3px] border-black rounded-full nb-bob shadow-[4px_4px_0_0_#000]"
-          style={{ animationDelay: "1s" }}
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.7, type: "spring" }}
-          className="hidden md:block absolute top-32 right-72 w-12 h-12 bg-[var(--accent-green)] border-[3px] border-black nb-spin-slow shadow-[3px_3px_0_0_#000]"
-        />
-        {/* Extra: a triangle that spins the other way */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.9, type: "spring" }}
-          className="hidden md:block absolute top-72 right-28 w-10 h-10 bg-[var(--accent-orange)] border-[3px] border-black nb-spin-slow-rev"
-          style={{ clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" }}
-        />
-
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-3 sm:px-4 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-5 sm:mb-6"
-          >
-            <motion.span
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-              className="w-2 h-2 bg-[var(--accent-green)] rounded-full"
-            />
-            Pre-development site intelligence
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold leading-[0.95] tracking-tighter max-w-5xl"
-          >
-            {"Know the water risk".split(" ").map((word, i) => (
-              <motion.span
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 + i * 0.08 }}
-                className="inline-block mr-2 sm:mr-3"
-              >
-                {word}
-              </motion.span>
-            ))}
-            <br />
-            <motion.span
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
-              className="text-[var(--accent-red)] inline-block"
-            >
-              before
-            </motion.span>{" "}
-            you build.
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="text-base sm:text-lg md:text-2xl text-black/75 mt-5 sm:mt-6 max-w-3xl leading-relaxed"
-          >
-            JalDrishti screens proposed data centre sites in India for water,
-            ecological, and regulatory constraints — turning days of due
-            diligence into a transparent, explainable report.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.75 }}
-            className="mt-6 sm:mt-8 flex flex-wrap items-center gap-3 sm:gap-4"
-          >
-            <motion.button
-              whileHover={{ y: -3 }}
-              whileTap={{ y: 0 }}
-              onClick={() => setView("analyze")}
-              className="nb-btn nb-btn-primary text-base sm:text-lg !py-3 sm:!py-3.5 !px-5 sm:!px-7"
-            >
-              <Search className="w-5 h-5" />
-              <span className="hidden sm:inline">Start screening</span>
-              <span className="sm:hidden">Start</span>
-              <ArrowRight className="w-5 h-5" />
-            </motion.button>
-            <motion.button
-              whileHover={{ y: -3 }}
-              whileTap={{ y: 0 }}
-              onClick={() => setView("about")}
-              className="nb-btn nb-btn-accent text-base sm:text-lg !py-3 sm:!py-3.5 !px-5 sm:!px-7"
-            >
-              How it works
-            </motion.button>
-          </motion.div>
-
-        </div>
-      </section>
-
-      {/* ============================================================
-          FEATURES
-         ============================================================ */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="mb-8 sm:mb-10"
-        >
-          <div className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-red)] mb-2">
-            What you get
-          </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight max-w-3xl">
-            Four lenses on every site, in one report.
-          </h2>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-          {FEATURES.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <motion.div
-                key={f.title}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ delay: i * 0.1, type: "spring", stiffness: 80 }}
-                whileHover={{ y: -4 }}
-                className="nb-card p-5 sm:p-7"
-              >
-                <motion.div
-                  whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                  transition={{ duration: 0.5 }}
-                  className="w-12 h-12 sm:w-14 sm:h-14 border-[3px] border-black flex items-center justify-center mb-3 sm:mb-4 shadow-[3px_3px_0_0_#000]"
-                  style={{ background: f.color }}
-                >
-                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" strokeWidth={2.2} />
-                </motion.div>
-                <h3 className="text-xl sm:text-2xl font-extrabold mb-2">{f.title}</h3>
-                <p className="text-sm sm:text-base text-black/70 leading-relaxed">{f.text}</p>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ============================================================
-          OUTCOMES
-         ============================================================ */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="mb-8 sm:mb-10"
-        >
-          <div className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-red)] mb-2">
-            Clear outcomes
-          </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight max-w-3xl">
-            No black-box score. Just an honest answer.
-          </h2>
-          <p className="text-base sm:text-lg text-black/70 mt-3 max-w-2xl">
-            Every site is classified into one of four categories — each one
-            backed by traceable evidence and a clear next step.
-          </p>
-        </motion.div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {OUTCOMES.map((o, i) => {
-            const Icon = o.icon;
-            return (
-              <motion.div
-                key={o.label}
-                initial={{ opacity: 0, scale: 0.85, rotate: -3 }}
-                whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ delay: i * 0.1, type: "spring", stiffness: 120 }}
-                whileHover={{ y: -6, rotate: i % 2 === 0 ? 1 : -1 }}
-                className="nb-card-flat p-4 sm:p-5"
-                style={{ background: o.color }}
-              >
-                <motion.div
-                  whileHover={{ scale: 1.15 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <Icon className="w-8 h-8 sm:w-9 sm:h-9 mb-3" strokeWidth={2.2} />
-                </motion.div>
-                <div className="text-base sm:text-lg font-extrabold leading-tight">{o.label}</div>
-                <div className="text-xs sm:text-sm mt-1 opacity-80">{o.desc}</div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ============================================================
-          CTA
-         ============================================================ */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-5 md:px-8 pb-12">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="nb-card p-6 sm:p-10 md:p-14 text-center relative overflow-hidden"
-          style={{ background: "var(--ink)", color: "var(--paper)" }}
-        >
-          {/* Animated gradient blob in CTA card */}
-          <motion.div
-            animate={{
-              x: [0, 60, 0],
-              y: [0, -40, 0],
-              scale: [1, 1.2, 1],
-            }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, var(--accent-red), transparent 70%)" }}
-          />
-          <motion.div
-            animate={{
-              x: [0, -50, 0],
-              y: [0, 30, 0],
-              scale: [1, 1.3, 1],
-            }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, var(--accent-yellow), transparent 70%)" }}
-          />
-
-          <h2 className="relative text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mb-3 sm:mb-4">
-            Ready to screen a site?
-          </h2>
-          <p className="relative text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-6 sm:mb-8">
-            Enter your project details and choose a location on the map. Get a site
-            breakdown in seconds.
-          </p>
-          <motion.button
-            whileHover={{ y: -3, scale: 1.03 }}
-            whileTap={{ y: 0, scale: 0.98 }}
-            onClick={() => setView("analyze")}
-            className="nb-btn nb-btn-accent text-base sm:text-lg !py-3 sm:!py-3.5 !px-6 sm:!px-8 mx-auto relative"
-          >
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-5 md:px-8 py-10 sm:py-14 space-y-12 sm:space-y-16">
+      {/* Purpose */}
+      <section>
+        <div className="nb-eyebrow">Pre-development screening</div>
+        <h1 className="text-3xl sm:text-5xl font-extrabold leading-[1.05] tracking-tight mt-2 max-w-3xl">
+          Know the water risk before you build.
+        </h1>
+        <p className="text-base sm:text-lg text-[var(--nb-muted)] mt-4 max-w-2xl leading-relaxed">
+          JalDrishti screens proposed data-centre sites in India for water demand,
+          environmental constraints, regulatory considerations and site evidence, and
+          produces an explainable preliminary screening result.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button onClick={() => setView("analyze")} className="nb-btn nb-btn-primary text-base !py-3 !px-5">
             <Search className="w-5 h-5" />
-            <span className="hidden sm:inline">Start screening</span>
-            <span className="sm:hidden">Start</span>
+            Start screening
             <ArrowRight className="w-5 h-5" />
-          </motion.button>
-        </motion.div>
+          </button>
+          <button onClick={() => setView("about")} className="nb-btn text-base !py-3 !px-5">
+            <Info className="w-4 h-4" />
+            How it works
+          </button>
+        </div>
+      </section>
+
+      {/* The four lenses */}
+      <section>
+        <div className="border-b-2 border-black pb-1 mb-4">
+          <h2 className="nb-section-title">What a screening covers</h2>
+        </div>
+        <div className="nb-card">
+          {LENSES.map((lens, index) => {
+            const Icon = lens.icon;
+            return (
+              <div
+                key={lens.title}
+                className={`flex gap-4 p-4 sm:p-5 ${
+                  index > 0 ? "border-t border-[var(--nb-rule)]" : ""
+                }`}
+              >
+                <div className="shrink-0 w-9 h-9 border-[3px] border-black bg-[var(--nb-tint)] flex items-center justify-center">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-extrabold">{lens.title}</h3>
+                  <p className="text-sm text-[var(--nb-muted)] mt-0.5 leading-relaxed">
+                    {lens.text}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Outcomes */}
+      <section>
+        <div className="border-b-2 border-black pb-1 mb-4">
+          <h2 className="nb-section-title">Screening outcomes</h2>
+        </div>
+        <p className="text-sm text-[var(--nb-muted)] mb-4 max-w-2xl">
+          Every site is classified into one of four outcomes by the rule engine. Each one
+          is backed by the constraints and evidence that produced it.
+        </p>
+        <div className="nb-card divide-y divide-[var(--nb-rule)]">
+          {OUTCOMES.map((outcome) => (
+            <div key={outcome.label} className="flex flex-wrap items-center gap-3 p-4">
+              <StatusChip tone={outcome.tone}>{outcome.label}</StatusChip>
+              <span className="text-sm text-[var(--nb-muted)]">{outcome.desc}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Standing position */}
+      <section className="nb-card-flat p-5 bg-[var(--nb-tint)]">
+        <div className="nb-eyebrow mb-1.5">What this is not</div>
+        <p className="text-sm leading-relaxed max-w-3xl">
+          JalDrishti provides preliminary decision support. It is not the authority, and a
+          screening result is not an approval, a consent or a statement of legal
+          compliance. Every figure is either calculated from the submitted parameters,
+          sourced from a named dataset, or marked as needing verification. Project-specific
+          entitlements, allocations and permissions must be confirmed with the relevant
+          authority.
+        </p>
       </section>
     </div>
   );

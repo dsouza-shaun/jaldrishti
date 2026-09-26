@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { CloudRain, MapPin, Thermometer, Sun, Droplets } from "lucide-react";
 import { EvidenceBadge } from "./GroundwaterPanel";
@@ -77,35 +76,28 @@ export function RainfallPanel() {
         : "No spatial match";
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
+    <div>
+      <div className="flex items-center justify-between border-b-2 border-black pb-1.5 mb-3">
         <h3 className="text-sm font-extrabold uppercase tracking-tight">
-          Rainfall / Climate
+          Rainfall and climate
         </h3>
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="border-[2px] border-black p-2 bg-[var(--paper)]">
-          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-black/60">
+        <div className="border-2 border-[var(--nb-rule)] p-2 bg-[var(--paper)]">
+          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-[var(--nb-muted)]">
             <MapPin className="w-3 h-3" />
             {isDistrict ? "District aggregate" : "Fallback station"}
           </div>
           <div className="font-bold text-sm">{rainfall.station ?? "UNKNOWN"}</div>
-          <div className="text-[10px] font-mono text-black/60">{locationLine}</div>
+          <div className="text-[10px] font-mono text-[var(--nb-muted)]">{locationLine}</div>
         </div>
-        <div className="border-[2px] border-black p-2 bg-[var(--paper)]">
-          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-black/60">
+        <div className="border-2 border-[var(--nb-rule)] p-2 bg-[var(--paper)]">
+          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-[var(--nb-muted)]">
             <CloudRain className="w-3 h-3" />
             {isDistrict ? "Annual aggregate" : "Fallback annual seed"}
           </div>
-          <div
-            className="font-extrabold text-lg"
-            style={{ color: "var(--accent-purple)" }}
-          >
+          <div className="font-extrabold text-lg">
             {rainfall.annualRainfallMm != null
               ? `${rainfall.annualRainfallMm} mm`
               : "—"}
@@ -212,7 +204,7 @@ export function RainfallPanel() {
                   dataKey="annual"
                   stroke="#000"
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: "var(--accent-purple)" }}
+                  dot={{ r: 3, fill: "#0a0a0a" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -220,7 +212,7 @@ export function RainfallPanel() {
         </div>
       )}
 
-      <div className="mt-2 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
+      <div className="mt-2 text-[10px] font-mono text-[var(--nb-muted)] border-t border-[var(--nb-rule)] pt-2">
         <strong>Dataset:</strong> {rainfall.provenance.source}
         {climate && (
           <>
@@ -231,6 +223,6 @@ export function RainfallPanel() {
           </>
         )}
       </div>
-    </motion.section>
+    </div>
   );
 }

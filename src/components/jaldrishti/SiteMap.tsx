@@ -370,7 +370,7 @@ export function SiteMap() {
 
   return (
     <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="nb-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-[3px] border-black bg-[var(--accent-yellow)] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-[3px] border-black bg-[var(--nb-tint)] px-4 py-3">
         <h2 className="flex items-center gap-2 text-base font-bold"><Layers className="h-4 w-4" />Site map</h2>
         <div className="flex flex-wrap gap-2">
           {toggleOrder.map((id) => (

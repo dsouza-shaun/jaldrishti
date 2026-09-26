@@ -5,32 +5,44 @@ import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
 import { REGULATORY_RULES_CATALOG } from "@/lib/rules/regulatory-rules";
 import {
   Search, ArrowRight, Database, ShieldCheck, Layers, Beaker, CloudRain,
-  MapPin, BookOpen, CheckCircle2, Droplets, Waves, Mountain,
+  MapPin, BookOpen, CheckCircle2, Droplets, Waves, HardHat, Building2,
 } from "lucide-react";
 
 const PIPELINE = [
-  { n: 1, title: "Project inputs", text: "Site coordinates, IT load, PUE, WUE, cooling technology, water source.", icon: MapPin, color: "var(--accent-red)" },
-  { n: 2, title: "Spatial checks", text: "Site point tested against ESZ, forest, wetland and CRZ polygons for overlaps and proximity.", icon: Layers, color: "var(--accent-purple)" },
-  { n: 3, title: "Water demand", text: "Deterministic engine computes daily and annual water requirement from IT load, PUE and WUE.", icon: Beaker, color: "var(--accent-yellow)" },
-  { n: 4, title: "Regulatory rules", text: "CGWA groundwater rules, environmental clearance thresholds and pollution-board requirements applied.", icon: ShieldCheck, color: "var(--accent-orange)" },
-  { n: 5, title: "Classification", text: "Hard constraints, evidence gaps and soft conditions resolved into a four-way outcome.", icon: CheckCircle2, color: "var(--accent-green)" },
+  { n: 1, title: "Project inputs", text: "Site coordinates, IT load, PUE, WUE, cooling technology, water source.", icon: MapPin },
+  { n: 2, title: "Spatial checks", text: "Site point tested against ESZ, forest, wetland and CRZ polygons for overlaps and proximity.", icon: Layers },
+  { n: 3, title: "Water demand", text: "Deterministic engine computes daily and annual water requirement from IT load, PUE and WUE.", icon: Beaker },
+  { n: 4, title: "Regulatory rules", text: "CGWA groundwater rules, environmental clearance thresholds and pollution-board requirements applied.", icon: ShieldCheck },
+  { n: 5, title: "Classification", text: "Hard constraints, evidence gaps and soft conditions resolved into a four-way outcome.", icon: CheckCircle2 },
 ];
 
 const DATASETS = [
-  { title: "Water risk, sector-weighted", source: "WRI Aqueduct 4.0, via the Esri India Living Atlas", coverage: "Aquifer water stress and depletion, with a Semiconductor and Electric Power weighting", icon: Droplets, color: "var(--accent-red)" },
-  { title: "Groundwater resources", source: "Central Ground Water Board (CGWB) Ground Water Year Book", coverage: "District-level recharge, extraction and stage of extraction", icon: Database, color: "var(--accent-teal)" },
-  { title: "District water context", source: "India district-level water quality and scarcity estimates, via Esri India Living Atlas", coverage: "Assessment-unit status, JRC surface water extent, IMD rainfall variability, aquifer geology", icon: Waves, color: "var(--accent-purple)" },
-  { title: "Terrain and elevation", source: "AWS Terrain Tiles (Terrarium), from SRTM / GMTED / ETOPO1", coverage: "Site elevation and local relief at roughly 30 m", icon: Mountain, color: "var(--accent-orange)" },
-  { title: "Satellite land cover", source: "Sentinel-2 10 m land use and land cover, via Esri India Living Atlas", coverage: "2021 classification, including a water-body class", icon: Layers, color: "var(--status-feasible)" },
-  { title: "Ground water map", source: "National Water Mission — Jal Shakti (live WMS relay)", coverage: "Monitoring stations and state availability surface, when a session is configured", icon: Database, color: "var(--accent-green)" },
-  { title: "Rainfall & climate", source: "India Meteorological Department (IMD) district-wise rainfall statistics", coverage: "1901-2015 subdivision time-series and live Open-Meteo conditions", icon: CloudRain, color: "var(--accent-teal)" },
-  { title: "Land cover", source: "ESA WorldCover rasters bundled with the app", coverage: "40 locations across three seasons", icon: MapPin, color: "var(--status-feasible)" },
-  { title: "Power plants", source: "Global Power Plant Database (WRI) derivative", coverage: "Installed capacity, fuel type and commissioning year", icon: Database, color: "var(--accent-orange)" },
-  { title: "Live basemap & ecology", source: "OpenStreetMap via OpenMapTiles and OpenFreeMap, plus the Overpass API", coverage: "Forests, wetlands, protected areas, coastlines and surface water", icon: Layers, color: "var(--accent-green)" },
+  { title: "Water risk, sector-weighted", source: "WRI Aqueduct 4.0, via the Esri India Living Atlas", coverage: "Aquifer water stress and depletion, with a Semiconductor and Electric Power weighting", icon: Droplets },
+  { title: "Groundwater resources", source: "Central Ground Water Board (CGWB) Ground Water Year Book", coverage: "District-level recharge, extraction and stage of extraction", icon: Database },
+  { title: "District water context", source: "India district-level water quality and scarcity estimates, via Esri India Living Atlas", coverage: "Assessment-unit status, JRC surface water extent, IMD rainfall variability, aquifer geology", icon: Waves },
+  { title: "Ground water map", source: "National Water Mission - Jal Shakti (live WMS relay)", coverage: "Monitoring stations and state availability surface, when a session is configured", icon: Database },
+  { title: "Rainfall and climate", source: "India Meteorological Department (IMD) district-wise rainfall statistics", coverage: "1901-2015 subdivision time-series and live Open-Meteo conditions", icon: CloudRain },
+  { title: "Power plants", source: "Global Power Plant Database (WRI) derivative", coverage: "Installed capacity, fuel type and commissioning year", icon: Database },
+  { title: "Live basemap and ecology", source: "OpenStreetMap via OpenMapTiles and OpenFreeMap, plus the Overpass API", coverage: "Forests, wetlands, protected areas, coastlines and surface water", icon: Layers },
 ];
 
 const EVIDENCE = [
-  { label: "Data coverage", desc: "Live services and bundled datasets are used where available. Areas with limited data may need further review.", color: "var(--accent-yellow)" },
+  { label: "Calculated", desc: "Derived from the submitted project inputs using a published formula, such as facility energy multiplied by WUE." },
+  { label: "Sourced", desc: "Read from a named public dataset or official record, with the source and its date recorded alongside the value." },
+  { label: "Needs verification", desc: "Project-specific detail that only the applicant or the authority can confirm, such as a water allocation or entitlement." },
+];
+
+const ROLES = [
+  {
+    icon: HardHat,
+    title: "Developer",
+    text: "Submits a site and its project parameters, runs the screening, explores scenarios, and submits the resulting report for review.",
+  },
+  {
+    icon: Building2,
+    title: "Authority",
+    text: "Reviews submitted screenings against the evidence, and records an assessment with comments. A recorded decision is a review record, not a statutory approval.",
+  },
 ];
 
 export function AboutView() {
@@ -70,10 +82,9 @@ export function AboutView() {
                 className="nb-card p-4 sm:p-5 flex items-start gap-3 sm:gap-5"
               >
                 <div
-                  className="w-12 h-12 sm:w-14 sm:h-14 border-[3px] border-black flex items-center justify-center shrink-0 shadow-[3px_3px_0_0_#000]"
-                  style={{ background: step.color }}
+                  className="w-12 h-12 sm:w-14 sm:h-14 border-[3px] border-black bg-[var(--nb-tint)] flex items-center justify-center shrink-0"
                 >
-                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" strokeWidth={2.2} />
+                  <Icon className="w-6 h-6 sm:w-7 sm:h-7" strokeWidth={2.2} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -90,26 +101,70 @@ export function AboutView() {
 
       {/* Evidence categories */}
       <section>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-3">Evidence you can trust</h2>
-        <p className="text-base sm:text-lg text-black/70 mb-5 sm:mb-6 max-w-2xl">
-          Every data point carries an evidence label. JalDrishti never invents
-          values — when data is missing, it says so.
+        <h2 className="text-2xl sm:text-3xl font-extrabold mb-3">How evidence is labelled</h2>
+        <p className="text-base text-[var(--nb-muted)] mb-5 max-w-2xl">
+          Every value in a screening carries one of three labels. JalDrishti does not
+          invent values: when data is missing, it says so.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {EVIDENCE.map((e, i) => (
-            <motion.div
-              key={e.label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
-              className="nb-card-flat p-4 sm:p-5"
-              style={{ background: e.color }}
+        <div className="nb-card">
+          {EVIDENCE.map((item, index) => (
+            <div
+              key={item.label}
+              className={`p-4 sm:p-5 ${index > 0 ? "border-t border-[var(--nb-rule)]" : ""}`}
             >
-              <div className="text-lg sm:text-xl font-extrabold mb-1">{e.label}</div>
-              <div className="text-sm opacity-85">{e.desc}</div>
-            </motion.div>
+              <div className="font-extrabold">{item.label}</div>
+              <div className="text-sm text-[var(--nb-muted)] mt-0.5 leading-relaxed">
+                {item.desc}
+              </div>
+            </div>
           ))}
+        </div>
+      </section>
+
+      {/* Roles */}
+      <section>
+        <h2 className="text-2xl sm:text-3xl font-extrabold mb-3">Roles and access</h2>
+        <p className="text-base text-[var(--nb-muted)] mb-5 max-w-2xl">
+          Sign-in is required. A Developer sees only the projects they submitted; an
+          Authority sees every submitted project in order to review it.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {ROLES.map((role) => {
+            const Icon = role.icon;
+            return (
+              <div key={role.title} className="nb-card-flat p-4 sm:p-5 flex gap-3">
+                <div className="shrink-0 w-9 h-9 border-[3px] border-black bg-[var(--nb-tint)] flex items-center justify-center">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-extrabold">{role.title}</h3>
+                  <p className="text-sm text-[var(--nb-muted)] mt-0.5 leading-relaxed">
+                    {role.text}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="nb-card-flat p-4 sm:p-5 mt-4 bg-[var(--nb-tint)]">
+          <div className="nb-eyebrow mb-1.5">Prototype scope</div>
+          <p className="text-sm leading-relaxed">
+            Authentication is a working demonstration, not a production-grade identity
+            system. Passwords are bcrypt-hashed and sessions are server-side records, but
+            there is no password reset, no email verification, no multi-factor
+            authentication and no lockout after repeated failures. The existing per-IP
+            rate limiter is the only brute-force mitigation. Deployments intended for
+            official use need a proper identity provider.
+          </p>
+          <div className="mt-3 pt-3 border-t border-[var(--nb-rule)]">
+            <div className="nb-eyebrow mb-1">Demo accounts</div>
+            <ul className="text-sm font-mono space-y-0.5">
+              <li>developer / dev@demo</li>
+              <li>developer2 / dev2@demo</li>
+              <li>authority / auth@demo</li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -132,11 +187,8 @@ export function AboutView() {
                 className="nb-card-flat p-4 sm:p-5"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className="w-9 h-9 sm:w-10 sm:h-10 border-[3px] border-black flex items-center justify-center shrink-0"
-                    style={{ background: d.color }}
-                  >
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 border-[3px] border-black bg-[var(--nb-tint)] flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
                     <h3 className="text-base sm:text-lg font-extrabold">{d.title}</h3>
@@ -173,7 +225,7 @@ export function AboutView() {
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] sm:text-xs font-mono font-bold text-[var(--accent-red)]">{r.ruleCode}</span>
-                <span className="nb-badge !text-[9px] sm:!text-xs" style={{ background: "var(--accent-yellow)" }}>{r.domain}</span>
+                <span className="nb-badge !text-[9px] sm:!text-xs" style={{ background: "var(--nb-tint)" }}>{r.domain}</span>
               </div>
               <h3 className="text-sm sm:text-base font-extrabold leading-tight">{r.title}</h3>
               <p className="text-xs sm:text-sm text-black/70 mt-1">{r.description}</p>
@@ -188,7 +240,7 @@ export function AboutView() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         className="nb-card-flat p-4 sm:p-6"
-        style={{ background: "var(--accent-yellow)" }}
+        style={{ background: "var(--nb-tint)" }}
       >
         <div className="flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 shrink-0" />

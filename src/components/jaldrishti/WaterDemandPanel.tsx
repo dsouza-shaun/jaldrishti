@@ -1,72 +1,91 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Droplets, Zap, Calendar } from "lucide-react";
+import { DataTable, StatusChip } from "@/components/jaldrishti/Document";
+import { titleCase } from "@/lib/report/document";
 
+/**
+ * Water demand, presented as a calculation trace rather than four coloured
+ * tiles. The submitted parameters sit above the outputs so a reader can check
+ * the arithmetic, and the formula line makes the derivation explicit.
+ */
 export function WaterDemandPanel() {
-  const { analysis } = useJalDrishti();
+  const { analysis, project } = useJalDrishti();
   if (!analysis) return null;
+
   const w = analysis.waterDemand as unknown as {
     waterKlPerDay: number;
     waterMcmPerYear: number;
     facilityEnergyMwhPerDay: number;
+    facilityEnergyKwhPerDay: number;
+    itEnergyKwhPerDay: number;
     waterMld: number;
+    waterLitresPerDay: number;
     wueUsed: number;
     wueSource: string;
     provenance: { source: string; sourceDate: string; evidenceStatus: string };
   };
 
-  const stats = [
-    { label: "Daily water demand", value: fmt(w.waterKlPerDay), unit: "kL/day", icon: <Droplets className="w-4 h-4" />, color: "var(--accent-red)" },
-    { label: "Annual water demand", value: fmt(w.waterMcmPerYear), unit: "MCM/year", icon: <Calendar className="w-4 h-4" />, color: "var(--accent-orange)" },
-    { label: "Facility energy", value: fmt(w.facilityEnergyMwhPerDay), unit: "MWh/day", icon: <Zap className="w-4 h-4" />, color: "var(--accent-yellow)" },
-    { label: "Water (MLD)", value: fmt(w.waterMld), unit: "MLD", icon: <Droplets className="w-4 h-4" />, color: "var(--accent-purple)" },
+  // IT load, PUE and cooling type are submitted inputs, not analysis outputs,
+  // so they come from the stored project row. The energy figures are derived
+  // here purely so the reader can follow the arithmetic.
+  const inputs = [
+    {
+      measure: "IT load",
+      value: project ? `${Number(project.itLoad).toFixed(1)} MW` : "Not available",
+    },
+    {
+      measure: "PUE",
+      value: project ? Number(project.pue).toFixed(3) : "Not available",
+    },
+    {
+      measure: "Cooling technology",
+      value: project ? titleCase(project.coolingType) : "Not available",
+    },
+    { measure: "WUE applied", value: `${Number(w.wueUsed).toFixed(3)} L/kWh` },
+    { measure: "IT energy", value: `${Math.round(w.itEnergyKwhPerDay).toLocaleString("en-IN")} kWh/day` },
+    { measure: "Facility energy", value: `${Math.round(w.facilityEnergyKwhPerDay).toLocaleString("en-IN")} kWh/day` },
+  ];
+
+  const outputs = [
+    { measure: "Daily water demand", value: `${Math.round(w.waterKlPerDay).toLocaleString("en-IN")} kL/day` },
+    { measure: "Annual water demand", value: `${Number(w.waterMcmPerYear).toFixed(3)} MCM/year` },
+    { measure: "Daily water demand", value: `${Number(w.waterMld).toFixed(3)} MLD` },
+    { measure: "Facility energy", value: `${Number(w.facilityEnergyMwhPerDay).toFixed(1)} MWh/day` },
   ];
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
-        <h3 className="text-sm font-extrabold uppercase tracking-tight">Water Demand Engine</h3>
-        <span className="nb-badge" style={{ background: "var(--accent-green)" }}>Calculated</span>
-      </div>
+    <div className="space-y-4">
+      <DataTable
+        caption="Submitted parameters"
+        columns={[
+          { key: "measure", header: "Parameter", render: (row) => <span className="font-semibold">{row.measure}</span> },
+          { key: "value", header: "Value", render: (row) => <span className="font-mono">{row.value}</span> },
+        ]}
+        rows={inputs}
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {stats.map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.05 * i }}
-            className="border-[2px] border-black p-2"
-            style={{ background: "var(--paper)" }}
-          >
-            <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-black/60">
-              {s.icon}
-              {s.label}
-            </div>
-            <div className="font-extrabold text-lg leading-tight" style={{ color: s.color }}>
-              {s.value}
-            </div>
-            <div className="text-[10px] font-mono text-black/60">{s.unit}</div>
-          </motion.div>
-        ))}
-      </div>
+      <DataTable
+        caption="Calculated demand"
+        columns={[
+          { key: "measure", header: "Measure", render: (row) => <span className="font-semibold">{row.measure}</span> },
+          { key: "value", header: "Value", render: (row) => <span className="font-mono font-bold">{row.value}</span> },
+        ]}
+        rows={outputs}
+      />
 
-      <div className="mt-3 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
-        <strong>WUE used:</strong> {String(w.wueUsed)} L/kWh · {String(w.wueSource)}<br />
-        <strong>Source:</strong> {w.provenance.source} · {w.provenance.evidenceStatus}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--nb-muted)]">
+        <StatusChip tone="feasible">Calculated</StatusChip>
+        <span>
+          Facility energy = IT load x 24 x PUE. Water demand = facility energy x WUE.
+        </span>
       </div>
-    </motion.section>
+      <p className="text-xs text-[var(--nb-muted)] leading-relaxed">
+        WUE reference: {String(w.wueSource)}. Source: {w.provenance.source},{" "}
+        {w.provenance.sourceDate}. The demand figure is a total. This screening does
+        not split demand into freshwater and reclaimed components, so no such split is
+        reported.
+      </p>
+    </div>
   );
-}
-
-function fmt(v: unknown): string {
-  if (typeof v !== "number") return "—";
-  if (v >= 1) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  return v.toFixed(3);
 }

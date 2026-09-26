@@ -1,94 +1,126 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Trees, Waves, Mountain, Anchor } from "lucide-react";
+import { DataTable, StatusChip, evidenceTone } from "@/components/jaldrishti/Document";
 
 const LAYER_META = {
-  esz:     { label: "ESZ (Eco-Sensitive Zone)",     icon: <Mountain className="w-4 h-4" />, color: "#8b5cf6" },
-  forest:  { label: "Forest (FC Act 1980)",          icon: <Trees className="w-4 h-4" />,   color: "#3ad17f" },
-  wetland: { label: "Wetland (Rules 2017)",          icon: <Waves className="w-4 h-4" />,   color: "#06b6d4" },
-  crz:     { label: "CRZ (Notification 2018)",       icon: <Anchor className="w-4 h-4" />, color: "#ff8c1a" },
+  esz:     { label: "Eco-Sensitive Zone", reference: "Wildlife (Protection) Act" },
+  forest:  { label: "Forest",              reference: "Forest (Conservation) Act" },
+  wetland: { label: "Wetland",             reference: "Wetland (Rules) 2017" },
+  crz:     { label: "Coastal Regulation Zone", reference: "CRZ Notification 2018" },
 } as const;
 
+type LayerKey = keyof typeof LAYER_META;
+
+/**
+ * The ecological assessment as a scannable table.
+ *
+ * This replaces four separately coloured boxes, each of which demanded its own
+ * glance. A table lets a reviewer read down the constraint column and see
+ * immediately which layers were tested, which came back clean, and which one
+ * needs attention.
+ */
 export function EcologyPanel() {
   const { analysis } = useJalDrishti();
   if (!analysis) return null;
 
   const eco = analysis.ecology as Record<
-    "esz" | "forest" | "wetland" | "crz",
+    LayerKey,
     {
       overlap: boolean;
       nearestDistanceKm: number;
-      evidenceStatus: string;
       intersectedPolygons: { name: string; category?: string }[];
-      rule: { outcome: string; reasons: string[]; hardConstraint: boolean; provenance: { source: string; sourceDate: string; evidenceStatus: string } };
+      rule: {
+        outcome: string;
+        reasons: string[];
+        hardConstraint: boolean;
+        provenance: { source: string; sourceDate: string; evidenceStatus: string };
+      };
     }
   >;
 
-  const layers = Object.keys(LAYER_META) as ("esz" | "forest" | "wetland" | "crz")[];
+  const rows = (Object.keys(LAYER_META) as LayerKey[]).map((layer) => ({
+    key: layer,
+    layer,
+    meta: LAYER_META[layer],
+    entry: eco[layer],
+  }));
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4 h-full flex flex-col"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
-        <h3 className="text-sm font-extrabold uppercase tracking-tight">Ecological Constraint Engine</h3>
-      </div>
-
-      <div className="flex-1 flex flex-col justify-between space-y-2">
-        {layers.map((k) => {
-          const e = eco[k];
-          const meta = LAYER_META[k];
-          return (
-            <div
-              key={k}
-              className="border-[2px] border-black bg-[var(--paper)]"
-              style={{ borderLeft: `8px solid ${meta.color}` }}
-            >
-              <div className="flex items-stretch">
-                <div className="flex-1 p-2">
-                  <div className="flex items-center gap-2">
-                    {meta.icon}
-                    <div className="font-extrabold text-xs uppercase tracking-wide">{meta.label}</div>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span
-                      className="nb-badge"
-                      style={{
-                        background: e.overlap ? "var(--accent-red)" : "var(--accent-green)",
-                        color: e.overlap ? "#fff" : "#000",
-                      }}
-                    >
-                      {e.overlap ? "Potential overlap" : "No overlap found"}
-                    </span>
-                    {!e.overlap && (
-                      <span className="text-[10px] font-mono">
-                        Nearest: {e.nearestDistanceKm.toFixed(2)} km
-                      </span>
+    <div className="space-y-3">
+      <DataTable
+        columns={[
+          { key: "constraint", header: "Constraint", render: (row) => <span className="font-semibold">{row.meta.label}</span> },
+          {
+            key: "status",
+            header: "Status",
+            render: (row) =>
+              row.entry?.overlap ? (
+                <StatusChip tone="constraint">Potential overlap</StatusChip>
+              ) : (
+                <StatusChip tone="feasible">No overlap found</StatusChip>
+              ),
+          },
+          {
+            key: "finding",
+            header: "Finding",
+            render: (row) => {
+              if (!row.entry) return "Not assessed";
+              if (row.entry.overlap) {
+                const names = row.entry.intersectedPolygons?.map((polygon) => polygon.name).filter(Boolean);
+                return (
+                  <div className="text-sm">
+                    <div className="font-bold uppercase text-xs">{row.entry.rule.outcome}</div>
+                    {names && names.length > 0 && (
+                      <div className="mt-0.5 text-[var(--nb-muted)]">{names.join(", ")}</div>
                     )}
-                    {e.overlap && e.intersectedPolygons.length > 0 && (
-                      <span className="text-[10px] font-mono">
-                        → {e.intersectedPolygons.map((p) => p.name).join(", ")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-[10px] font-mono text-black/70">
-                    {e.rule.outcome}
-                  </div>
-                  <ul className="mt-0.5 space-y-0">
-                    {e.rule.reasons.map((reason, i) => (
-                      <li key={i} className="text-[10px] text-black/70 leading-snug">· {reason}</li>
+                    {row.entry.rule.reasons.map((reason, index) => (
+                      <div key={index} className="mt-0.5 text-xs text-[var(--nb-muted)] leading-snug">
+                        {reason}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                );
+              }
+              return (
+                <div className="text-sm">
+                  <span className="font-mono text-xs">
+                    Nearest {row.entry.nearestDistanceKm.toFixed(2)} km
+                  </span>
+                  {row.entry.rule.reasons.map((reason, index) => (
+                    <div key={index} className="mt-0.5 text-xs text-[var(--nb-muted)] leading-snug">
+                      {reason}
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </motion.section>
+              );
+            },
+          },
+          {
+            key: "evidence",
+            header: "Evidence",
+            render: (row) => (
+              <StatusChip tone={evidenceTone(row.entry?.rule.provenance.evidenceStatus ?? "UNKNOWN")}>
+                {row.entry?.rule.provenance.evidenceStatus === "VERIFIED" ? "Sourced" : row.entry?.rule.provenance.evidenceStatus === "PROXY" ? "Modelled" : "Limited"}
+              </StatusChip>
+            ),
+          },
+          {
+            key: "reference",
+            header: "Reference",
+            render: (row) => (
+              <span className="text-xs text-[var(--nb-muted)]">{row.meta.reference}</span>
+            ),
+          },
+        ]}
+        rows={rows}
+        rowKey={(row) => row.key}
+      />
+      <p className="text-xs text-[var(--nb-muted)] leading-relaxed">
+        Constraints are tested against the available boundary layers. No detected
+        overlap is not a clearance, and absence of a layer in the source data is not
+        evidence of absence on the ground.
+      </p>
+    </div>
   );
 }

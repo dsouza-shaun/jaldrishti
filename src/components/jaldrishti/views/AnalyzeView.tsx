@@ -39,10 +39,11 @@ export function AnalyzeView() {
   const [submitting, setSubmitting] = useState(false);
 
   const onAnalyze = async () => {
-    const { setAnalyzing, setAnalysis, setCurrentProjectId, setScenarios, setAiExplanation } = useJalDrishti.getState();
+    const { setAnalyzing, setAnalysis, setCurrentProjectId, setScenarios, setAiExplanation, setProject } = useJalDrishti.getState();
     setSubmitting(true);
     setAnalyzing(true);
     setAnalysis(null);
+    setProject(null);
     setScenarios([]);
     setAiExplanation(null);
     try {
@@ -56,19 +57,18 @@ export function AnalyzeView() {
       const data = await res.json();
       const pid = data.project.id;
       setCurrentProjectId(pid);
+      setProject({ ...data.project, createdAt: new Date().toISOString() });
 
       const aRes = await fetch(`/api/projects/${pid}/analyze`, { method: "POST" });
       if (!aRes.ok) throw new Error((await aRes.json()).error ?? "Failed to analyze");
       const aData = await aRes.json();
       setAnalysis(aData.result);
 
-      // Success toast
       toast({
         title: "Screening complete",
-        description: `Classification: ${aData.result.classification.classification}. View the full dashboard below.`,
+        description: `Result: ${aData.result.classification.classification}. The full breakdown is on the dashboard.`,
       });
 
-      // Jump to dashboard once analysis is ready
       setView("dashboard");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
@@ -91,15 +91,14 @@ export function AnalyzeView() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <div className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-red)]">
-          Step 1 of 1
-        </div>
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight">
-          Tell us about your project.
+        <div className="nb-eyebrow">New site analysis</div>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+          New Site Analysis
         </h1>
-        <p className="text-base sm:text-lg text-black/70 max-w-2xl">
-          Fill in the project details and choose a proposed site on the map. JalDrishti
-          will run a full screening and take you to the dashboard.
+        <p className="text-base text-[var(--nb-muted)] max-w-2xl">
+          Submit the project parameters and the proposed site. JalDrishti screens the site
+          for water demand, environmental constraints and regulatory considerations, then
+          produces an explainable preliminary result.
         </p>
       </motion.div>
 
@@ -163,7 +162,7 @@ export function AnalyzeView() {
           <motion.div
             whileHover={{ rotate: [0, -10, 10, 0] }}
             transition={{ duration: 0.5 }}
-            className="w-9 h-9 sm:w-10 sm:h-10 bg-[var(--accent-yellow)] border-[3px] border-black flex items-center justify-center shadow-[3px_3px_0_0_#000]"
+            className="w-9 h-9 sm:w-10 sm:h-10 bg-[var(--nb-tint)] border-[3px] border-black flex items-center justify-center"
           >
             <Settings2 className="w-5 h-5" />
           </motion.div>
@@ -253,7 +252,7 @@ export function AnalyzeView() {
           <motion.div
             whileHover={{ rotate: [0, -10, 10, 0] }}
             transition={{ duration: 0.5 }}
-            className="w-9 h-9 sm:w-10 sm:h-10 bg-[var(--accent-purple)] border-[3px] border-black flex items-center justify-center shadow-[3px_3px_0_0_#000]"
+            className="w-9 h-9 sm:w-10 sm:h-10 bg-[var(--nb-tint)] border-[3px] border-black flex items-center justify-center"
           >
             <Droplets className="w-5 h-5 text-white" />
           </motion.div>
@@ -306,7 +305,7 @@ export function AnalyzeView() {
           className="nb-btn nb-btn-primary text-base sm:text-lg !py-3 sm:!py-3.5 !px-5 sm:!px-7"
         >
           {submitting || analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Rocket className="w-5 h-5" />}
-          {submitting || analyzing ? "Screening..." : "Run screening"}
+          {submitting || analyzing ? "Screening..." : "Run Screening"}
           {!submitting && !analyzing && <ChevronRight className="w-5 h-5" />}
         </motion.button>
         <motion.button
@@ -326,13 +325,13 @@ export function AnalyzeView() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="nb-card-flat p-5 flex items-start gap-3"
-        style={{ background: "var(--accent-yellow)" }}
+        className="nb-card-flat p-4 flex items-start gap-3"
+        style={{ background: "var(--nb-tint)" }}
       >
         <Building2 className="w-5 h-5 mt-0.5 shrink-0" />
-        <p className="text-base">
-          <strong>Tip:</strong> Use the quick site presets for known industrial
-          areas. You can fine-tune coordinates manually for greater accuracy.
+        <p className="text-sm text-[var(--nb-muted)]">
+          Use the quick site presets for known industrial areas, or place the pin manually
+          for a specific plot. Coordinates drive every downstream dataset lookup.
         </p>
       </motion.div>
     </div>

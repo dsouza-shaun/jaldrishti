@@ -12,13 +12,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---- Accounts -------------------------------------------------------------------
+// Two roles only. DEVELOPER submits project information and receives review
+// feedback; AUTHORITY reviews submitted screenings and records a decision.
+// JalDrishti is decision support, not the authority: an AUTHORITY decision
+// records an assessment, it does not grant statutory approval.
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  role         String    // DEVELOPER | AUTHORITY
+  displayName  String
+  organisation String?
+  createdAt    DateTime  @default(now())
+
+  sessions     Session[]
+  projects     Project[]
+  reviews      Review[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 // ---- Project inputs -----------------------------------------------------------
 
 model Project {
   id                    String         @id @default(cuid())
-  // Anonymous browser ownership token; replace with a real user relation when
-  // authentication is introduced. Nullable preserves legacy local rows.
-  ownerId               String?
+  // Owning account. A DEVELOPER only ever sees their own projects; an
+  // AUTHORITY sees every project in order to review it. Null only on rows
+  // created before authentication existed.
+  developerId           String?
+  developer             User?          @relation(fields: [developerId], references: [id], onDelete: SetNull)
   projectName           String
   latitude              Float
   longitude             Float
@@ -34,9 +67,10 @@ model Project {
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
-  @@index([ownerId])
+  @@index([developerId])
   analyses              Analysis[]
   scenarios             Scenario[]
+  reviews               Review[]
 }
 
 // ---- Analysis runs (one per /analyze call) ------------------------------------
@@ -46,6 +80,9 @@ model Analysis {
   projectId     String
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   resultJson    String   // full structured JSON: water demand, regulatory, ecology, classification, evidence
+  // AI-assisted plain-language explanation. Explains the result above; it
+  // never contributes to it.
+  explanation   String?
   createdAt     DateTime @default(now())
 
   @@index([projectId])
@@ -67,6 +104,26 @@ model Scenario {
   createdAt     DateTime @default(now())
 
   @@index([projectId])
+}
+
+// ---- Authority review ----------------------------------------------------------
+// One row per submission. A project can be submitted, reviewed, resubmitted;
+// the latest row by updatedAt is the current status shown to the developer.
+
+model Review {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewerId String?
+  reviewer   User?    @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+  // PENDING | APPROVED | APPROVED_WITH_CONDITIONS | REJECTED | MORE_INFO
+  decision   String   @default("PENDING")
+  comments   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([decision])
 }
 
 // ---- Groundwater blocks (CGWB periodic data) ----------------------------------

@@ -1,22 +1,59 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { Droplets, MapPin, Gauge, Beaker, Database } from "lucide-react";
+import { DataTable, StatusChip, evidenceTone } from "@/components/jaldrishti/Document";
 
-const CATEGORY_COLOR: Record<string, string> = {
-  Safe: "var(--status-feasible)",
-  "Semi-Critical": "var(--status-conditional)",
-  Critical: "var(--status-insufficient)",
-  "Over-Exploited": "var(--status-constraint)",
-  Saline: "var(--status-constraint)",
-  UNKNOWN: "var(--status-unknown)",
+const EVIDENCE_META: Record<string, { label: string; explanation: string }> = {
+  VERIFIED: {
+    label: "Verified",
+    explanation: "Read directly from a named dataset or official record for this exact site.",
+  },
+  PROXY: {
+    label: "Proxy",
+    explanation: "Modelled or estimated from the nearest available data, not measured on site.",
+  },
+  UNKNOWN: {
+    label: "Limited data",
+    explanation: "No matching dataset was found; treat this value as a placeholder, not a fact.",
+  },
 };
 
+export function EvidenceBadge({ status }: { status: string }) {
+  const meta = EVIDENCE_META[status] ?? EVIDENCE_META.UNKNOWN;
+  return (
+    <StatusChip tone={evidenceTone(status)} title={meta.explanation}>
+      {meta.label}
+    </StatusChip>
+  );
+}
+
+export { EVIDENCE_META };
+
+const CATEGORY_TONE: Record<string, "feasible" | "conditional" | "insufficient" | "constraint" | "muted"> = {
+  Safe: "feasible",
+  "Semi-Critical": "conditional",
+  Critical: "insufficient",
+  "Over-Exploited": "constraint",
+  Saline: "constraint",
+  UNKNOWN: "muted",
+};
+
+const DATASET_LABEL: Record<string, string> = {
+  DISTRICT_CSV: "District dataset",
+  MOCK_BLOCK_FALLBACK: "Nearby area estimate",
+  UNKNOWN: "No dataset match",
+};
+
+/**
+ * Water source and groundwater evidence as a field/finding table. The category
+ * is a status chip because it drives the CGWA rule; everything else is context
+ * and stays in the table.
+ */
 export function GroundwaterPanel() {
   const { analysis } = useJalDrishti();
   if (!analysis) return null;
-  const groundwater = analysis.groundwater as {
+
+  const gw = analysis.groundwater as unknown as {
     datasetType: "DISTRICT_CSV" | "MOCK_BLOCK_FALLBACK" | "UNKNOWN";
     block: string | null;
     district: string | null;
@@ -32,163 +69,62 @@ export function GroundwaterPanel() {
       totalAnnualRecharge: number | null;
       totalCurrentExtraction: number | null;
     } | null;
-    provenance: {
-      source: string;
-      sourceDate: string;
-      evidenceStatus: string;
-      caveat?: string;
-    };
+    provenance: { source: string; sourceDate: string; evidenceStatus: string; caveat?: string };
   };
 
-  const sourceLabel =
-    groundwater.datasetType === "DISTRICT_CSV"
-      ? "District CSV"
-      : groundwater.datasetType === "MOCK_BLOCK_FALLBACK"
-        ? "Nearby area estimate"
-        : "No dataset match";
+  const rows: Array<{ field: string; value: React.ReactNode }> = [
+    {
+      field: "Screening category",
+      value: <StatusChip tone={CATEGORY_TONE[gw.category] ?? "muted"}>{gw.category}</StatusChip>,
+    },
+    { field: "Dataset", value: DATASET_LABEL[gw.datasetType] ?? gw.datasetType },
+    { field: "District", value: gw.district ?? "Not available" },
+    { field: "State", value: gw.state ?? "Not available" },
+    { field: "Block or assessment unit", value: gw.block ?? "Not identified" },
+    {
+      field: "Assessment unit verified",
+      value: gw.assessmentUnitVerified ? "Yes" : "No, district level only",
+    },
+    {
+      field: "Extraction stage",
+      value: gw.stage != null ? `${gw.stage.toFixed(1)}%` : "Not available",
+    },
+    { field: "Total dissolved solids", value: gw.tds != null ? `${gw.tds} mg/L` : "Not supplied" },
+    {
+      field: "Water table depth",
+      value:
+        gw.preMonsoon != null || gw.postMonsoon != null
+          ? `${gw.preMonsoon ?? "-"} / ${gw.postMonsoon ?? "-"} mbgl`
+          : "Not supplied",
+    },
+    {
+      field: "Annual recharge",
+      value: gw.resources?.totalAnnualRecharge != null ? `${gw.resources.totalAnnualRecharge} ham` : "Not available",
+    },
+    {
+      field: "Current extraction",
+      value: gw.resources?.totalCurrentExtraction != null ? `${gw.resources.totalCurrentExtraction} ham` : "Not available",
+    },
+    {
+      field: "Distance to record",
+      value: gw.distanceKm != null ? `${gw.distanceKm.toFixed(2)} km` : "Not applicable",
+    },
+    { field: "Evidence status", value: <EvidenceBadge status={gw.provenance.evidenceStatus} /> },
+  ];
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="nb-card p-4"
-    >
-      <div className="flex items-center justify-between border-b-[2px] border-black pb-2 mb-3">
-        <h3 className="text-sm font-extrabold uppercase tracking-tight">
-          Groundwater
-        </h3>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Info
-          icon={<Database className="w-3 h-3" />}
-          label="Dataset"
-          value={sourceLabel}
-        />
-        <Info
-          icon={<MapPin className="w-3 h-3" />}
-          label="District"
-          value={groundwater.district ?? "UNKNOWN"}
-        />
-        <Info
-          icon={<MapPin className="w-3 h-3" />}
-          label="Block / unit"
-          value={groundwater.block ?? "Not identified"}
-        />
-        <Info
-          icon={<Gauge className="w-3 h-3" />}
-          label="Extraction stage"
-          value={groundwater.stage != null ? `${groundwater.stage}%` : "UNKNOWN"}
-        />
-        <Info
-          icon={<Beaker className="w-3 h-3" />}
-          label="TDS"
-          value={groundwater.tds != null ? `${groundwater.tds} mg/L` : "Not supplied"}
-        />
-        <Info
-          icon={<Droplets className="w-3 h-3" />}
-          label="Water-table depth"
-          value={
-            groundwater.preMonsoon != null || groundwater.postMonsoon != null
-              ? `${groundwater.preMonsoon ?? "—"} / ${groundwater.postMonsoon ?? "—"} mbgl`
-              : "Not supplied"
-          }
-        />
-      </div>
-
-      <div className="mt-3">
-        <div className="text-[9px] font-extrabold uppercase tracking-wider text-black/60 mb-1">
-          Screening category
-        </div>
-        <div
-          className="border-[3px] border-black px-3 py-2 font-extrabold text-base uppercase"
-          style={{
-            background:
-              CATEGORY_COLOR[groundwater.category] ?? "var(--status-unknown)",
-          }}
-        >
-          {groundwater.category}
-        </div>
-      </div>
-
-      {groundwater.resources && (
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] font-mono">
-          <div className="border-[2px] border-black p-2">
-            <strong>Annual recharge:</strong>{" "}
-            {groundwater.resources.totalAnnualRecharge ?? "—"}
-          </div>
-          <div className="border-[2px] border-black p-2">
-            <strong>Current extraction:</strong>{" "}
-            {groundwater.resources.totalCurrentExtraction ?? "—"}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-3 text-[10px] font-mono text-black/70 border-t-[2px] border-dashed border-black pt-2">
-        <strong>Source:</strong> {groundwater.provenance.source}<br />
-        <strong>Spatial resolution:</strong>{" "}
-        {groundwater.assessmentUnitVerified
-          ? "Assessment unit verified"
-          : "District/fallback only — not block-verified"}
-        {groundwater.distanceKm !== null && (
-          <>
-            {" · "}
-            <strong>Centroid distance:</strong> {groundwater.distanceKm.toFixed(2)} km
-          </>
-        )}
-        {groundwater.provenance.caveat && (
-          <div className="mt-1 leading-snug">{groundwater.provenance.caveat}</div>
-        )}
-      </div>
-    </motion.section>
-  );
-}
-
-function Info({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="border-[2px] border-black p-2 bg-[var(--paper)] min-w-0">
-      <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-black/60">
-        {icon}
-        <span className="truncate">{label}</span>
-      </div>
-      <div className="font-bold text-xs sm:text-sm break-words">{value}</div>
+    <div className="space-y-3">
+      <DataTable
+        columns={[
+          { key: "field", header: "Field", render: (row) => <span className="font-semibold">{row.field}</span> },
+          { key: "value", header: "Finding", render: (row) => <span className="text-sm">{row.value}</span> },
+        ]}
+        rows={rows}
+      />
+      <p className="text-xs text-[var(--nb-muted)] leading-relaxed">
+        Source: {gw.provenance.source}, {gw.provenance.sourceDate}.
+        {gw.provenance.caveat ? ` ${gw.provenance.caveat}` : ""}
+      </p>
     </div>
   );
 }
-
-const EVIDENCE_META: Record<string, { label: string; color: string; explanation: string }> = {
-  VERIFIED: {
-    label: "Verified",
-    color: "var(--status-verified)",
-    explanation: "Read directly from a named dataset or official record for this exact site.",
-  },
-  PROXY: {
-    label: "Proxy",
-    color: "var(--status-conditional)",
-    explanation: "Modelled or estimated from the nearest available data, not measured on site.",
-  },
-  UNKNOWN: {
-    label: "Limited data",
-    color: "var(--status-unknown)",
-    explanation: "No matching dataset was found; treat this value as a placeholder, not a fact.",
-  },
-};
-
-export function EvidenceBadge({ status }: { status: string }) {
-  const meta = EVIDENCE_META[status] ?? EVIDENCE_META.UNKNOWN;
-  return (
-    <span className="nb-badge" style={{ background: meta.color }} title={meta.explanation}>
-      {meta.label}
-    </span>
-  );
-}
-
-export { EVIDENCE_META };
