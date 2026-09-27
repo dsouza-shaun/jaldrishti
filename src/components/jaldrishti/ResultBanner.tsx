@@ -108,13 +108,6 @@ export function ResultBanner() {
           <Figure label="Result basis" value="Deterministic rules" />
         </dl>
       </div>
-
-      <div className="border-t-2 border-black px-4 sm:px-5 py-2.5 flex flex-wrap items-center gap-2">
-        <StatusChip tone="neutral">Preliminary</StatusChip>
-        <span className="text-xs text-[var(--nb-muted)] leading-relaxed">
-          Decision support only. Not an approval, and JalDrishti is not the authority.
-        </span>
-      </div>
     </div>
   );
 }

@@ -14,12 +14,12 @@ import {
   Menu,
   X,
   AlertCircle,
-  LogOut,
   Building2,
 } from "lucide-react";
 import { useJalDrishti, type ViewKey } from "@/lib/stores/jaldrishti-store";
 import { useToast } from "@/hooks/use-toast";
 import { ROLE_LABEL } from "@/lib/auth/constants";
+import { AccountMenu } from "@/components/jaldrishti/AccountMenu";
 
 interface NavItem {
   key: ViewKey;
@@ -126,7 +126,7 @@ export function Header({ activeView }: { activeView: ViewKey }) {
             <h1 className="text-xl sm:text-2xl font-extrabold leading-none tracking-tight">
               Jal<span style={{ color: "var(--accent-red)" }}>Drishti</span>
             </h1>
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--nb-muted)] mt-0.5 hidden sm:block">
+            <p className="text-xs sm:text-xs font-semibold uppercase tracking-[0.14em] text-[var(--nb-muted)] mt-0.5 hidden sm:block">
               Water feasibility screening
             </p>
           </div>
@@ -148,22 +148,15 @@ export function Header({ activeView }: { activeView: ViewKey }) {
         {/* Account + mobile menu */}
         <div className="flex items-center gap-2 shrink-0">
           {user && (
-            <div className="hidden sm:flex items-center gap-2 border-[3px] border-black px-2.5 py-1.5">
-              <span className="nb-badge !border-0 !p-0 bg-[var(--nb-tint)]">
-                {ROLE_LABEL[user.role]}
-              </span>
-              <span className="text-xs font-semibold max-w-[9rem] truncate">
-                {user.displayName}
-              </span>
-              <button
-                onClick={signOut}
-                title="Sign out"
-                aria-label="Sign out"
-                className="hover:text-[var(--accent-red)]"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            <AccountMenu
+              identity={{
+                displayName: user.displayName,
+                username: user.username,
+                role: ROLE_LABEL[user.role],
+                organisation: user.organisation,
+              }}
+              onSignOut={signOut}
+            />
           )}
 
           <button
@@ -187,24 +180,8 @@ export function Header({ activeView }: { activeView: ViewKey }) {
             className="lg:hidden overflow-hidden border-t-[3px] border-black bg-[var(--paper)]"
           >
             <div className="px-4 py-3 flex flex-col gap-2">
-              {user && (
-                <div className="flex items-center justify-between border-[3px] border-black px-3 py-2 mb-1">
-                  <div className="min-w-0">
-                    <div className="nb-badge !border-0 !p-0 bg-[var(--nb-tint)]">
-                      {ROLE_LABEL[user.role]}
-                    </div>
-                    <div className="text-sm font-bold truncate">{user.displayName}</div>
-                  </div>
-                  <button
-                    onClick={signOut}
-                    className="nb-btn !py-1.5 !px-3 text-sm shrink-0"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign out
-                  </button>
-                </div>
-              )}
-
+              {/* The account avatar is in the bar above at every width, so the
+                  mobile panel does not repeat the identity or sign-out. */}
               {items.map((item) => {
                 const active = activeView === item.key;
                 const locked = Boolean(item.requiresAnalysis && !analysis);
@@ -222,7 +199,7 @@ export function Header({ activeView }: { activeView: ViewKey }) {
                     <Icon className="w-4 h-4" />
                     {item.label}
                     {locked && (
-                      <span className="ml-auto flex items-center gap-1 text-[10px] font-mono uppercase text-[var(--accent-red)]">
+                      <span className="ml-auto flex items-center gap-1 text-xs font-mono uppercase text-[var(--accent-red)]">
                         <AlertCircle className="w-3 h-3" />
                         Locked
                       </span>

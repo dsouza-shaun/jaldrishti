@@ -85,15 +85,15 @@ export function RainfallPanel() {
 
       <div className="grid grid-cols-2 gap-2 mb-3">
         <div className="border-2 border-[var(--nb-rule)] p-2 bg-[var(--paper)]">
-          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-[var(--nb-muted)]">
+          <div className="flex items-center gap-1 text-xs font-extrabold uppercase tracking-wider text-[var(--nb-muted)]">
             <MapPin className="w-3 h-3" />
             {isDistrict ? "District aggregate" : "Fallback station"}
           </div>
           <div className="font-bold text-sm">{rainfall.station ?? "UNKNOWN"}</div>
-          <div className="text-[10px] font-mono text-[var(--nb-muted)]">{locationLine}</div>
+          <div className="text-xs font-mono text-[var(--nb-muted)]">{locationLine}</div>
         </div>
         <div className="border-2 border-[var(--nb-rule)] p-2 bg-[var(--paper)]">
-          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-[var(--nb-muted)]">
+          <div className="flex items-center gap-1 text-xs font-extrabold uppercase tracking-wider text-[var(--nb-muted)]">
             <CloudRain className="w-3 h-3" />
             {isDistrict ? "Annual aggregate" : "Fallback annual seed"}
           </div>
@@ -102,7 +102,7 @@ export function RainfallPanel() {
               ? `${rainfall.annualRainfallMm} mm`
               : "—"}
           </div>
-          <div className="text-[10px] font-mono text-black/60">
+          <div className="text-xs font-mono text-black/60">
             Monsoon: {rainfall.monsoonRainfallMm ?? "—"} mm
           </div>
         </div>
@@ -111,10 +111,10 @@ export function RainfallPanel() {
       {climate?.data.current && (
         <div className="border-[2px] border-black p-2 bg-[var(--paper)] mb-3">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="text-[9px] font-extrabold uppercase tracking-wider text-black/60">
+            <div className="text-xs font-extrabold uppercase tracking-wider text-black/60">
               Modelled conditions now
             </div>
-            <span className="text-[9px] font-mono border border-black px-1">
+            <span className="text-xs font-mono border border-black px-1">
               {climate.cacheStatus}
             </span>
           </div>
@@ -122,7 +122,7 @@ export function RainfallPanel() {
             <div className="flex items-center gap-1">
               <Thermometer className="w-3 h-3" />
               <strong>{climate.data.current.temperatureC ?? "—"}°C</strong>
-              <span className="text-[10px] text-black/60">
+              <span className="text-xs text-black/60">
                 {climate.data.current.weatherDescription}
               </span>
             </div>
@@ -144,21 +144,21 @@ export function RainfallPanel() {
 
       {climate && (
         <div className="border-[2px] border-black p-2 bg-[var(--paper)] mb-3">
-          <div className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-black/60 mb-2">
+          <div className="flex items-center gap-1 text-xs font-extrabold uppercase tracking-wider text-black/60 mb-2">
             <Sun className="w-3 h-3" /> Seven-day forecast
           </div>
           <div className="grid grid-cols-4 gap-1 text-center">
             {climate.data.daily.slice(0, 4).map((day) => (
               <div key={day.date} className="border border-black p-1">
-                <div className="text-[8px] font-mono">{day.date.slice(5)}</div>
+                <div className="text-xs font-mono">{day.date.slice(5)}</div>
                 <div className="font-extrabold text-xs">
                   {day.temperatureMinC ?? "—"}–{day.temperatureMaxC ?? "—"}°
                 </div>
-                <div className="text-[9px]">{day.precipitationMm ?? "—"} mm</div>
+                <div className="text-xs">{day.precipitationMm ?? "—"} mm</div>
               </div>
             ))}
           </div>
-          <div className="mt-2 text-[10px] font-mono">
+          <div className="mt-2 text-xs font-mono">
             7-day P−ET₀:{" "}
             <strong>
               {climate.data.sevenDayWaterBalanceMm.precipitationMinusEt0} mm
@@ -169,7 +169,7 @@ export function RainfallPanel() {
 
       {rainfall.timeseries.length > 0 && (
         <div className="border-[2px] border-black p-2 bg-[var(--paper)]">
-          <div className="text-[9px] font-extrabold uppercase tracking-wider text-black/60 mb-1">
+          <div className="text-xs font-extrabold uppercase tracking-wider text-black/60 mb-1">
             Representative fallback series (mm)
           </div>
           <div style={{ width: "100%", height: 140 }}>
@@ -212,7 +212,7 @@ export function RainfallPanel() {
         </div>
       )}
 
-      <div className="mt-2 text-[10px] font-mono text-[var(--nb-muted)] border-t border-[var(--nb-rule)] pt-2">
+      <div className="mt-2 text-xs font-mono text-[var(--nb-muted)] border-t border-[var(--nb-rule)] pt-2">
         <strong>Dataset:</strong> {rainfall.provenance.source}
         {climate && (
           <>

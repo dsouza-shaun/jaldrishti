@@ -85,7 +85,7 @@ export function buildReportSections(input: ReportInput): ReportSection[] {
           ["Proposed water source", titleCase(project.proposedWaterSource)],
           ["Alternative water source", titleCase(project.alternativeWaterSource)],
           ["Land tenure", titleCase(project.landTenure)],
-          ["Built-up area", project.builtUpArea != null ? `${fmtInt(project.builtUpArea)} m2` : "Not supplied"],
+          ["Built-up area", project.builtUpArea != null ? `${fmtInt(project.builtUpArea)} m\u00B2` : "Not supplied"],
           ["Applicant notes", emDash(project.notes)],
         ],
       },
@@ -111,7 +111,7 @@ export function buildReportSections(input: ReportInput): ReportSection[] {
       { kind: "paragraph", text: CLASSIFICATION_MEANING[classification] ?? "" },
       {
         kind: "note",
-        text: "This is a preliminary screening produced by deterministic rules over public and bundled data. It is not an approval, and JalDrishti is not the authority.",
+        text: "This is a preliminary screening produced by deterministic rules over public and bundled data",
       },
     ],
   });
@@ -228,12 +228,18 @@ export function buildReportSections(input: ReportInput): ReportSection[] {
   });
 
   // ---- Regulatory ----------------------------------------------------------
+  const regulatoryReasons = [
+    ...(analysis.regulatory?.cgwa?.reasons ?? []),
+    ...(analysis.regulatory?.ec?.reasons ?? []),
+    ...(analysis.regulatory?.spcb?.reasons ?? []),
+  ];
   sections.push({
     id: "regulatory",
     title: "Regulatory Assessment",
     blocks: [
       {
         kind: "table",
+        caption: "Regulatory checks",
         columns: ["Check", "Outcome", "Constraint", "Reference"],
         rows: [
           [
@@ -256,14 +262,10 @@ export function buildReportSections(input: ReportInput): ReportSection[] {
           ],
         ],
       },
-      {
-        kind: "list",
-        items: [
-          ...(analysis.regulatory?.cgwa?.reasons ?? []),
-          ...(analysis.regulatory?.ec?.reasons ?? []),
-          ...(analysis.regulatory?.spcb?.reasons ?? []),
-        ],
-      },
+      // Only shown when a rule actually produced a reason to read.
+      ...(regulatoryReasons.length > 0
+        ? [{ kind: "list" as const, items: regulatoryReasons }]
+        : []),
     ],
   });
 
@@ -335,57 +337,76 @@ export function buildReportSections(input: ReportInput): ReportSection[] {
             `${condition.label}${condition.summary ? `: ${condition.summary}` : ""}`,
         ),
       },
-      {
-        kind: "note",
-        text:
-          headline.total > headline.shown.length
-            ? (() => {
+      // A note is only meaningful when something was actually withheld.
+      ...(headline.total > headline.shown.length
+        ? [
+            {
+              kind: "note" as const,
+              text: (() => {
                 const withheld = headline.total - headline.shown.length;
                 return `${headline.total} condition${headline.total === 1 ? " was" : "s were"} assessed. The remaining ${withheld} ${withheld === 1 ? "is" : "are"} recorded in full in the table${withheld === 1 ? "" : "s"} below.`;
-              })()
-            : "Every condition raised by the screening is listed above.",
-      },
-      {
-        kind: "table",
-        caption: "Hard constraints",
-        columns: ["Constraint", "Outcome", "Finding", "Reference"],
-        rows: hard.map((item) => [
-          item.label,
-          item.outcome,
-          (item.reasons ?? []).join(" "),
-          `${emDash(item.provenance?.source)}, ${emDash(item.provenance?.sourceDate)}`,
-        ]),
-      },
-      {
-        kind: "table",
-        caption: "Conditions",
-        columns: ["Condition", "Outcome", "Finding", "Reference"],
-        rows: soft.map((item) => [
-          item.label,
-          item.outcome,
-          (item.reasons ?? []).join(" "),
-          `${emDash(item.provenance?.source)}, ${emDash(item.provenance?.sourceDate)}`,
-        ]),
-      },
+              })(),
+            },
+          ]
+        : []),
+      // Only emit a table when it has rows. An empty table renders as
+      // "No data available.", which reads as a failure when it actually means
+      // the screening found no constraints of that kind.
+      ...(hard.length > 0
+        ? [
+            {
+              kind: "table" as const,
+              caption: "Hard constraints",
+              columns: ["Constraint", "Outcome", "Finding", "Reference"],
+              rows: hard.map((item) => [
+                item.label,
+                item.outcome,
+                (item.reasons ?? []).join(" "),
+                `${emDash(item.provenance?.source)}, ${emDash(item.provenance?.sourceDate)}`,
+              ]),
+            },
+          ]
+        : []),
+      ...(soft.length > 0
+        ? [
+            {
+              kind: "table" as const,
+              caption: "Conditions",
+              columns: ["Condition", "Outcome", "Finding", "Reference"],
+              rows: soft.map((item) => [
+                item.label,
+                item.outcome,
+                (item.reasons ?? []).join(" "),
+                `${emDash(item.provenance?.source)}, ${emDash(item.provenance?.sourceDate)}`,
+              ]),
+            },
+          ]
+        : []),
     ],
   });
 
   // ---- Verification required ----------------------------------------------
-  sections.push({
-    id: "verification",
-    title: "Verification Required",
-    blocks: [
-      {
-        kind: "table",
-        columns: ["Item", "Why it matters"],
-        rows: (analysis.evidenceGaps ?? []).map((gap) => [gap.label, gap.whyCritical]),
-      },
-      {
-        kind: "note",
-        text: "Items above are unavailable or unverified in this screening. They must be confirmed by the applicant or the authority before a decision is taken.",
-      },
-    ],
-  });
+  // Only present when there is something to verify. An empty table here printed
+  // "No data available." directly above a note about confirming items, which is
+  // self-contradictory on a screening that recorded no gaps.
+  const gaps = analysis.evidenceGaps ?? [];
+  if (gaps.length > 0) {
+    sections.push({
+      id: "verification",
+      title: "Verification Required",
+      blocks: [
+        {
+          kind: "table",
+          columns: ["Item", "Why it matters"],
+          rows: gaps.map((gap) => [gap.label, gap.whyCritical]),
+        },
+        {
+          kind: "note",
+          text: "Items above are unavailable or unverified in this screening. They must be confirmed by the applicant or the authority before a decision is taken.",
+        },
+      ],
+    });
+  }
 
   // ---- Scenarios -----------------------------------------------------------
   if (scenarios && scenarios.length > 0) {

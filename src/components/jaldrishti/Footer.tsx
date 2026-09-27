@@ -35,45 +35,20 @@ export function Footer() {
             Explore
           </h4>
           <ul className="space-y-2 text-sm">
-            <li>
+            <li className="flex items-center gap-2 text-white/80">
               <button onClick={() => setView("home")} className="text-white/80 hover:text-[var(--paper)] transition-colors">
                 Home
               </button>
             </li>
-            <li>
+            <li className="flex items-center gap-2 text-white/80">
               <button onClick={() => setView("analyze")} className="text-white/80 hover:text-[var(--paper)] transition-colors">
                 Run a new analysis
               </button>
             </li>
-            <li>
+            <li className="flex items-center gap-2 text-white/80">
               <button onClick={() => setView("about")} className="text-white/80 hover:text-[var(--paper)] transition-colors">
                 How it works
               </button>
-            </li>
-          </ul>
-        </div>
-
-        {/* Outcomes */}
-        <div>
-          <h4 className="text-sm font-extrabold uppercase tracking-wider text-[var(--paper)] mb-3">
-            Outcomes
-          </h4>
-          <ul className="space-y-2 text-sm">
-            <li className="flex items-center gap-2 text-white/80">
-              <span className="w-3 h-3 border border-white" style={{ background: "var(--status-feasible)" }} />
-              Feasible
-            </li>
-            <li className="flex items-center gap-2 text-white/80">
-              <span className="w-3 h-3 border border-white" style={{ background: "var(--status-conditional)" }} />
-              Feasible with conditions
-            </li>
-            <li className="flex items-center gap-2 text-white/80">
-              <span className="w-3 h-3 border border-white" style={{ background: "var(--status-insufficient)" }} />
-              Data insufficient
-            </li>
-            <li className="flex items-center gap-2 text-white/80">
-              <span className="w-3 h-3 border border-white" style={{ background: "var(--status-constraint)" }} />
-              High constraint
             </li>
           </ul>
         </div>

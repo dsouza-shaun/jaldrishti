@@ -14,6 +14,21 @@ interface RuleRow {
   evidenceStatus: string;
 }
 
+const HARD_CONSTRAINT =
+  "A hard constraint. Any one of these on its own results in High Constraint, and further assessment is required before the site can be considered.";
+
+const SOFT_CONSTRAINT =
+  "A soft constraint. These do not decide the outcome alone, but they become conditions that must be addressed and confirmed.";
+
+const EVIDENCE_EXPLANATION: Record<string, string> = {
+  VERIFIED:
+    "Sourced. Read directly from the named official record or dataset for this rule.",
+  PROXY:
+    "Modelled. Derived from regional or nearest-available data rather than read directly for this site, so it needs confirmation.",
+  UNKNOWN:
+    "Limited data. No usable source responded for this check, so the outcome is not established.",
+};
+
 /**
  * The three rule engines as a scannable table: what was checked, what came
  * back, how binding it is, and which rule produced it. Reasons stay attached
@@ -71,16 +86,23 @@ export function RegulatoryPanel() {
           header: "Binding",
           render: (row) =>
             row.hardConstraint ? (
-              <StatusChip tone="constraint">Hard</StatusChip>
+              <StatusChip tone="constraint" title={HARD_CONSTRAINT}>
+                Hard
+              </StatusChip>
             ) : (
-              <StatusChip tone="neutral">Soft</StatusChip>
+              <StatusChip tone="neutral" title={SOFT_CONSTRAINT}>
+                Soft
+              </StatusChip>
             ),
         },
         {
           key: "status",
           header: "Evidence",
           render: (row) => (
-            <StatusChip tone={evidenceTone(row.evidenceStatus)}>
+            <StatusChip
+              tone={evidenceTone(row.evidenceStatus)}
+              title={EVIDENCE_EXPLANATION[row.evidenceStatus] ?? EVIDENCE_EXPLANATION.UNKNOWN}
+            >
               {row.evidenceStatus === "VERIFIED" ? "Sourced" : row.evidenceStatus === "PROXY" ? "Modelled" : "Limited"}
             </StatusChip>
           ),

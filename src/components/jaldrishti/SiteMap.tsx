@@ -321,7 +321,7 @@ export function SiteMap() {
             }
             const properties = (payload.feature.properties ?? {}) as Record<string, unknown>;
             const heading = document.createElement("div");
-            heading.className = "font-extrabold uppercase text-[10px] mb-1";
+            heading.className = "font-extrabold uppercase text-xs mb-1";
             heading.textContent = "Ground water monitoring record";
             body.appendChild(heading);
             for (const [key, value] of Object.entries(properties)) {

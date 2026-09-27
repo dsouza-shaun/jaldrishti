@@ -177,7 +177,7 @@ export function EvidencePanel() {
     rows.push({
       key: "climate",
       label: "Modelled current weather",
-      value: `${climate.data.current.temperatureC ?? "â€”"}°C`,
+      value: `${climate.data.current.temperatureC ?? "\u2014"}\u00B0C`,
       source: climate.data.attribution.label,
       sourceDate: climate.retrievedAt,
       evidenceStatus: "PROXY",
@@ -264,7 +264,7 @@ export function EvidencePanel() {
 
       <div className="max-h-[360px] overflow-y-auto nb-scroll border-2 border-[var(--nb-rule)]">
         <table className="w-full text-xs">
-          <thead className="bg-black text-[var(--paper)] text-[9px] uppercase tracking-wider sticky top-0">
+          <thead className="bg-black text-[var(--paper)] text-xs uppercase tracking-wider sticky top-0">
             <tr>
               <th className="text-left p-2">Field</th>
               <th className="text-left p-2">Value</th>
@@ -282,10 +282,10 @@ export function EvidencePanel() {
                     {row.label}
                   </span>
                 </td>
-                <td className="p-2 font-mono text-[10px]">{row.value}</td>
+                <td className="p-2 font-mono text-xs">{row.value}</td>
                 <td className="p-2"><EvidenceBadge status={row.evidenceStatus} /></td>
-                <td className="p-2 text-[10px]">{row.source}</td>
-                <td className="p-2 text-[10px] font-mono">{row.sourceDate}</td>
+                <td className="p-2 text-xs">{row.source}</td>
+                <td className="p-2 text-xs font-mono">{row.sourceDate}</td>
               </tr>
             ))}
           </tbody>
@@ -298,7 +298,7 @@ export function EvidencePanel() {
           return (
             <div key={status} className="flex items-start gap-2 border-2 border-[var(--nb-rule)] bg-[var(--paper)] p-2">
               <EvidenceBadge status={status} />
-              <p className="text-[10px] leading-snug text-[var(--nb-muted)]">{meta.explanation}</p>
+              <p className="text-xs leading-snug text-[var(--nb-muted)]">{meta.explanation}</p>
             </div>
           );
         })}

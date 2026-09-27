@@ -91,7 +91,6 @@ export function AnalyzeView() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <div className="nb-eyebrow">New site analysis</div>
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
           New Site Analysis
         </h1>

@@ -129,19 +129,19 @@ export function DashboardView() {
                   <ConditionList items={headline.shown} startAt={1} />
                   {headline.rest.length > 0 && (
                     showAllConditions ? (
-                      <>
+                      <div className="mt-2.5">
                         <ConditionList items={headline.rest} startAt={headline.shown.length + 1} />
                         <button
                           onClick={() => setShowAllConditions(false)}
-                          className="nb-btn !py-1 !px-2.5 text-xs mt-2"
+                          className="nb-btn !py-1 !px-2.5 text-xs mt-3"
                         >
                           Show fewer
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <button
                         onClick={() => setShowAllConditions(true)}
-                        className="nb-btn !py-1 !px-2.5 text-xs mt-2"
+                        className="nb-btn !py-1 !px-2.5 text-xs mt-3"
                       >
                         See all {headline.total} conditions
                       </button>
@@ -154,9 +154,28 @@ export function DashboardView() {
             <DataTable
               caption="Constraints by weight"
               columns={[
-                { key: "label", header: "Constraint", render: (row) => <span className="font-semibold">{row.label}</span> },
+                { key: "label", header: "Constraint", render: (row) => <span className="font-bold">{row.label}</span> },
                 { key: "outcome", header: "Outcome", render: (row) => <span className="font-bold uppercase text-sm">{row.outcome}</span> },
-                { key: "weight", header: "Weight", render: (row) => row.kind === "hard" ? <StatusChip tone="constraint">Hard</StatusChip> : <StatusChip tone="neutral">Soft</StatusChip> },
+                {
+                  key: "weight",
+                  header: "Weight",
+                  render: (row) =>
+                    row.kind === "hard" ? (
+                      <StatusChip
+                        tone="constraint"
+                        title="A hard constraint. Any one of these on its own results in High Constraint, and further assessment is required."
+                      >
+                        Hard
+                      </StatusChip>
+                    ) : (
+                      <StatusChip
+                        tone="neutral"
+                        title="A soft constraint. These do not decide the outcome alone, but they become conditions that must be addressed and confirmed."
+                      >
+                        Soft
+                      </StatusChip>
+                    ),
+                },
               ]}
               rows={[...hard, ...soft]}
               rowKey={(row) => row.key}
@@ -312,7 +331,10 @@ export function DashboardView() {
         },
       },
     ];
-  }, [analysis, project, reportInput]);
+    // showAllConditions is read inside the render closures below, so it has to
+    // be a dependency. Without it the memoised sections keep the collapsed
+    // closures and the "See all conditions" button appears to do nothing.
+  }, [analysis, project, reportInput, showAllConditions]);
 
   if (!analysis) {
     return (
@@ -349,7 +371,6 @@ export function DashboardView() {
       {/* Page header. Identifies the site; deliberately quieter than the result. */}
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="nb-eyebrow">Preliminary site screening</div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight break-words mt-0.5">
             {analysis.projectName}
           </h1>

@@ -272,7 +272,7 @@ export function ProjectInputForm() {
               <RotateCcw className="w-4 h-4" />
               Reset
             </button>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-black/60">
+            <span className="text-xs font-mono uppercase tracking-wider text-black/60">
               POST /api/projects → POST /api/projects/[id]/analyze
             </span>
           </div>

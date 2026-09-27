@@ -116,19 +116,6 @@ export function HomeView() {
           ))}
         </div>
       </section>
-
-      {/* Standing position */}
-      <section className="nb-card-flat p-5 bg-[var(--nb-tint)]">
-        <div className="nb-eyebrow mb-1.5">What this is not</div>
-        <p className="text-sm leading-relaxed max-w-3xl">
-          JalDrishti provides preliminary decision support. It is not the authority, and a
-          screening result is not an approval, a consent or a statement of legal
-          compliance. Every figure is either calculated from the submitted parameters,
-          sourced from a named dataset, or marked as needing verification. Project-specific
-          entitlements, allocations and permissions must be confirmed with the relevant
-          authority.
-        </p>
-      </section>
     </div>
   );
 }

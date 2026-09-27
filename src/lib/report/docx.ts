@@ -254,6 +254,9 @@ function renderBlock(block: Block): Array<Paragraph | Table> {
     }
 
     case "table": {
+      // An empty table is one the section builder chose to omit, so it is
+      // skipped rather than rendered as an empty grid.
+      if (block.rows.length === 0) return [];
       const out: Array<Paragraph | Table> = [];
       if (block.caption) {
         out.push(

@@ -116,7 +116,7 @@ function Row({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-black/25 py-1 last:border-b-0">
-      <span className="text-[11px] text-black/70">{label}</span>
+      <span className="text-xs text-black/70">{label}</span>
       <span className="text-xs font-extrabold text-right" style={color ? { color } : undefined}>
         {value}
       </span>
@@ -177,7 +177,7 @@ export function WaterRiskPanel() {
         <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-tight">
           <Droplets className="h-4 w-4" /> Live water risk
         </h3>
-        <span className="text-[10px] font-mono text-[var(--nb-muted)]">live services</span>
+        <span className="text-xs font-mono text-[var(--nb-muted)]">live services</span>
       </div>
 
       <div className="space-y-3">
@@ -188,7 +188,7 @@ export function WaterRiskPanel() {
             title="WRI Aqueduct 4.0"
             badge={<EvidenceBadge status={aqueduct.provenance.evidenceStatus} />}
           >
-            <p className="mb-2 text-[10px] leading-snug text-black/60">
+            <p className="mb-2 text-xs leading-snug text-black/60">
               Aqueduct weights water risk per industry. A data centre is scored
               under <strong>Semiconductor</strong> and <strong>Electric
               power</strong> below, not under the all-sector average.
@@ -196,7 +196,7 @@ export function WaterRiskPanel() {
             {[semiconductors, electricPower].filter(Boolean).map((sector) => (
               <div key={sector!.code} className="mb-2 last:mb-0">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[11px] font-extrabold uppercase">
+                  <span className="text-xs font-extrabold uppercase">
                     {sector!.label}
                   </span>
                   <span
@@ -206,7 +206,7 @@ export function WaterRiskPanel() {
                     {sector!.overall.categoryLabel ?? "—"}
                   </span>
                 </div>
-                <div className="mt-0.5 text-[10px] font-mono text-black/60">
+                <div className="mt-0.5 text-xs font-mono text-black/60">
                   score {sector!.overall.score?.toFixed(2) ?? "—"} of 5
                 </div>
                 <div className="mt-1.5 space-y-0">
@@ -221,7 +221,7 @@ export function WaterRiskPanel() {
                 </div>
               </div>
             ))}
-            <div className="mt-1 text-[10px] font-mono text-black/55">
+            <div className="mt-1 text-xs font-mono text-black/55">
               {aqueduct.region ? `${aqueduct.region}, ${aqueduct.country}` : "—"}
               {" · "}
               {aqueduct.provenance.sourceDate}
@@ -236,7 +236,7 @@ export function WaterRiskPanel() {
             title="Basin indicators"
             badge={<EvidenceBadge status={aqueduct.provenance.evidenceStatus} />}
           >
-            <p className="mb-1 text-[10px] leading-snug text-black/60">
+            <p className="mb-1 text-xs leading-snug text-black/60">
               Unweighted, all-sector measures for the surrounding basin.
             </p>
             {availability.map((indicator) => (
@@ -367,7 +367,7 @@ export function WaterRiskPanel() {
                 />
               </>
             )}
-            <p className="mt-2 text-[10px] leading-snug text-black/55">
+            <p className="mt-2 text-xs leading-snug text-black/55">
               {district.provenance.caveat}
             </p>
           </Section>
@@ -404,7 +404,7 @@ export function WaterRiskPanel() {
                 value={`${elevation.resolutionMPerPixel} m/px`}
               />
             )}
-            <p className="mt-2 text-[10px] leading-snug text-black/55">
+            <p className="mt-2 text-xs leading-snug text-black/55">
               {elevation.provenance.caveat}
             </p>
           </Section>

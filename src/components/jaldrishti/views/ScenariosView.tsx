@@ -457,7 +457,7 @@ export function ScenariosView() {
           </ol>
           <p className="text-xs text-[var(--nb-muted)] mt-3 leading-relaxed">
             Suggested next steps derived from this screening. They are not legal
-            requirements and do not establish compliance.
+            requirements.
           </p>
         </SectionShell>
       )}
@@ -525,7 +525,7 @@ function Bar({
             background: isBaseline ? "var(--ink)" : "var(--nb-muted)",
           }}
         >
-          <span className="text-[10px] sm:text-xs font-bold text-white whitespace-nowrap">
+          <span className="text-xs font-bold text-white whitespace-nowrap">
             {kl(value)} kL
           </span>
         </div>

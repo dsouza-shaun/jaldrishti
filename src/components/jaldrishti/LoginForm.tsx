@@ -90,7 +90,7 @@ export function LoginForm({ next }: { next: string | null }) {
                   </span>
                 </span>
                 <span
-                  className={`mt-1 block text-[11px] leading-tight ${
+                  className={`mt-1 block text-xs leading-tight ${
                     selected ? "text-[var(--paper)]/75" : "text-[var(--nb-muted)]"
                   }`}
                 >

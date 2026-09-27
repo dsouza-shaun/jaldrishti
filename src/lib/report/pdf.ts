@@ -255,6 +255,10 @@ function drawBlock(doc: PDFKit.PDFDocument, block: Block, width: number): void {
       drawList(doc, block);
       return;
     case "table": {
+      // Section builders omit tables that have nothing to say, so an empty table
+      // here carries no meaning. Draw nothing rather than a "No data available."
+      // line that reads as a failure to the person reviewing the document.
+      if (block.rows.length === 0) return;
       if (block.caption) {
         doc.font("Helvetica-Bold").fontSize(8).fillColor(MUTED)
           .text(safeText(block.caption).toUpperCase(), { characterSpacing: 0.6 });

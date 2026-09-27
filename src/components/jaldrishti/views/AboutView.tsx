@@ -193,7 +193,7 @@ export function AboutView() {
                   <div>
                     <h3 className="text-base sm:text-lg font-extrabold">{d.title}</h3>
                     <p className="text-xs sm:text-sm text-black/70 mt-0.5">{d.source}</p>
-                    <p className="text-[10px] sm:text-xs text-black/50 mt-1 font-mono">{d.coverage}</p>
+                    <p className="text-xs text-black/50 mt-1 font-mono">{d.coverage}</p>
                   </div>
                 </div>
               </motion.div>
@@ -224,8 +224,8 @@ export function AboutView() {
               className="nb-card-flat p-3 sm:p-4"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] sm:text-xs font-mono font-bold text-[var(--accent-red)]">{r.ruleCode}</span>
-                <span className="nb-badge !text-[9px] sm:!text-xs" style={{ background: "var(--nb-tint)" }}>{r.domain}</span>
+                <span className="text-xs font-mono font-bold text-[var(--accent-red)]">{r.ruleCode}</span>
+                <span className="nb-badge !text-xs" style={{ background: "var(--nb-tint)" }}>{r.domain}</span>
               </div>
               <h3 className="text-sm sm:text-base font-extrabold leading-tight">{r.title}</h3>
               <p className="text-xs sm:text-sm text-black/70 mt-1">{r.description}</p>

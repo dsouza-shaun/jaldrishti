@@ -63,7 +63,9 @@ export function WaterDemandPanel() {
           { key: "value", header: "Value", render: (row) => <span className="font-mono">{row.value}</span> },
         ]}
         rows={inputs}
-      />
+      /> 
+
+      <br />
 
       <DataTable
         caption="Calculated demand"

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileDown, FileType2, Printer, Loader2, AlertCircle, Send } from "lucide-react";
+import { FileDown, FileType2, Printer, Loader2, AlertCircle } from "lucide-react";
 import { useJalDrishti } from "@/lib/stores/jaldrishti-store";
-import { useToast } from "@/hooks/use-toast";
+import { ReviewStatusStrip } from "@/components/jaldrishti/ReviewStatusStrip";
 import { DataTable, Metric, StatusChip, classificationTone } from "@/components/jaldrishti/Document";
 import type { Block, Metric as MetricItem } from "@/lib/report/document";
 import type { ReportSection } from "@/lib/report/sections";
@@ -187,48 +187,19 @@ export function ReportView({ projectId }: { projectId: string | null }) {
   );
 }
 
-/** Submit-for-review, shown only to the Developer. */
+/**
+ * Submit-and-status for the report.
+ *
+ * This reuses the dashboard's review strip rather than repeating the submit
+ * logic, because a second copy was the source of two bugs: it never re-read the
+ * status after submitting, and it had no way to withdraw a submission. One
+ * component means the report and the dashboard can never disagree about whether
+ * a project is on review.
+ */
 function ReportActions({ projectId }: { projectId: string | null }) {
-  const { toast } = useToast();
-  const { user } = useJalDrishti();
-  const [busy, setBusy] = useState(false);
-
-  if (user?.role !== "DEVELOPER" || !projectId) return null;
-
-  const submit = async () => {
-    setBusy(true);
-    try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
-      });
-      if (!response.ok) throw new Error((await response.json()).error ?? "Unable to submit");
-      toast({
-        title: "Submitted for review",
-        description: "The authority can now assess this screening.",
-      });
-    } catch (cause) {
-      toast({
-        title: "Could not submit",
-        description: cause instanceof Error ? cause.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div className="nb-card-flat p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 nb-no-print">
-      <p className="text-sm text-[var(--nb-muted)] max-w-xl">
-        Submit this screening for authority review. The authority records an assessment
-        against it; JalDrishti does not grant approval.
-      </p>
-      <button onClick={submit} disabled={busy} className="nb-btn !py-1.5 !px-3 text-sm">
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        Submit for authority review
-      </button>
+    <div className="nb-no-print">
+      <ReviewStatusStrip projectId={projectId} />
     </div>
   );
 }
@@ -269,6 +240,9 @@ function BlockView({ block }: { block: Block }) {
       );
 
     case "table":
+      // Section builders omit empty tables; render nothing rather than an
+      // empty-state line that reads as a failure to a reviewer.
+      if (block.rows.length === 0) return null;
       return (
         <DataTable
           caption={block.caption}
@@ -286,7 +260,13 @@ function BlockView({ block }: { block: Block }) {
                     : cell === "Needs verification" || cell === "Limited"
                       ? "muted"
                       : "conditional";
-                return <StatusChip tone={tone}>{cell}</StatusChip>;
+                const why =
+                  cell === "Sourced"
+                    ? "Sourced. Read directly from the named official record or dataset."
+                    : cell === "Modelled"
+                      ? "Modelled. Derived from regional or nearest-available data rather than read directly for this site."
+                      : "Limited data. No usable source responded, so this needs confirmation.";
+                return <StatusChip tone={tone} title={why}>{cell}</StatusChip>;
               }
               if (/^(Feasible|Feasible with Conditions|Data Insufficient|High Constraint)/.test(cell)) {
                 return <StatusChip tone={classificationTone(cell)}>{cell}</StatusChip>;
@@ -306,7 +286,7 @@ function BlockView({ block }: { block: Block }) {
 function MetricRow({ items }: { items: MetricItem[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 border-y-2 border-black py-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 border-b-2 border-black py-4">
       {items.map((item, index) => (
         <Metric
           key={index}
@@ -327,7 +307,7 @@ function BlockList({ items, ordered }: { items: string[]; ordered?: boolean }) {
       {items.map((item, index) => (
         <li key={index} className="flex gap-2.5">
           {ordered && (
-            <span className="shrink-0 w-5 h-5 border border-black bg-[var(--nb-tint)] flex items-center justify-center text-[10px] font-bold mt-0.5">
+            <span className="shrink-0 w-5 h-5 border border-black bg-[var(--nb-tint)] flex items-center justify-center text-xs font-bold mt-0.5">
               {index + 1}
             </span>
           )}

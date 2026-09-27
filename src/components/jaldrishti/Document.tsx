@@ -138,9 +138,7 @@ export function DataTable<T>({
 
   return (
     <>
-      {caption && (
-        <div className="nb-eyebrow mb-1.5">{caption}</div>
-      )}
+      {caption && <div className="nb-eyebrow mb-2">{caption}</div>}
       <div className="overflow-x-auto nb-scroll">
         <table className="nb-table">
           <thead>
@@ -190,9 +188,25 @@ const CHIP_STYLES: Record<string, { background: string; color: string }> = {
   muted: { background: "var(--status-unknown)", color: "var(--ink)" },
 };
 
+const CHIP_EXPLANATIONS: Record<string, string> = {
+  feasible: "No constraint was triggered by the evidence available for this site.",
+  conditional:
+    "A condition applies. The listed items must be addressed and confirmed before development.",
+  insufficient:
+    "Required evidence was unavailable, so no conclusion can be drawn from this screening.",
+  constraint:
+    "A hard constraint was triggered. The site requires further assessment before it can be considered.",
+  neutral: "Informational label. It does not by itself indicate a constraint.",
+  muted: "Data is limited or unavailable for this field. Treat it as unverified.",
+};
+
 /**
  * A small uppercase label. Only the four outcome styles carry colour; the rest
  * are neutral, so colour never becomes decoration.
+ *
+ * The `title` attribute is set by default from the tone, so hovering any status
+ * chip explains what that status means rather than leaving the reader to infer
+ * it from the colour. An explicit `title` overrides it.
  */
 export function StatusChip({
   children,
@@ -208,7 +222,7 @@ export function StatusChip({
     <span
       className="nb-badge"
       style={{ background: style.background, color: style.color }}
-      title={title}
+      title={title ?? CHIP_EXPLANATIONS[tone]}
     >
       {children}
     </span>
