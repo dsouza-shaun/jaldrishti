@@ -502,7 +502,7 @@ async function decodeTerrariumElevation(
     );
     const response = await fetch(url, {
       method: "GET",
-      headers: { Accept: "image/png", "User-Agent": "JalDrishti/0.2.1" },
+      headers: { Accept: "image/png", "User-Agent": "JalDrishti/0.3.1" },
       cache: "force-cache",
       next: { revalidate: 60 * 60 * 24 * 30 },
       signal: AbortSignal.timeout(10_000),

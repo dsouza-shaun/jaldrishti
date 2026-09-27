@@ -193,7 +193,7 @@ function upstreamHeaders(accept: string): Record<string, string> {
     Accept: accept,
     Referer: `${NWIC_BASE_URL}/groundwatermap?module=Ground+Water+Level`,
     Origin: NWIC_BASE_URL,
-    "User-Agent": "JalDrishti/0.2.1 (WMS tile proxy)",
+    "User-Agent": "JalDrishti/0.3.1 (WMS tile proxy)",
     ...(NWIC_COOKIE ? { Cookie: NWIC_COOKIE } : {}),
   };
 }

@@ -154,7 +154,7 @@ export async function reverseGeocode(
   baseUrl.searchParams.set("accept-language", "en");
 
   const configuredAgent = process.env.NOMINATIM_USER_AGENT?.trim();
-  const userAgent = configuredAgent || "JalDrishti/0.2.1";
+  const userAgent = configuredAgent || "JalDrishti/0.3.1";
   const contact = process.env.NOMINATIM_EMAIL?.trim();
   const headers = {
     "User-Agent": contact ? `${userAgent} (${contact})` : userAgent,

@@ -41,7 +41,7 @@ export async function GET(req: Request) {
     const query = `[out:json][timeout:15];(${searches.join("")});out tags geom;`;
     const response = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "JalDrishti/0.2.1" },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "JalDrishti/0.3.1" },
       body: new URLSearchParams({ data: query }),
       signal: AbortSignal.timeout(15_000),
       next: { revalidate: 86_400 },

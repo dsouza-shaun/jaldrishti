@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 if (-not $IsWindows -and $env:OS -ne "Windows_NT") {
   throw "Build the Windows installer from Windows PowerShell."
@@ -390,7 +390,7 @@ $iss = @"
 [Setup]
 AppId={{8C7B13B6-987A-4B25-A5D9-0C5D37A12175}
 AppName=JalDrishti
-AppVersion=0.3.0
+AppVersion=0.3.1
 DefaultDirName={localappdata}\Programs\JalDrishti
 DefaultGroupName=JalDrishti
 PrivilegesRequired=lowest

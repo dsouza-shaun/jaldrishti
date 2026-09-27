@@ -35,7 +35,7 @@ import path from "node:path";
  * unavailable. There is no fallback.
  *
  * NOMINATIM_USER_AGENT is NOT required, because the app falls back to the bare
- * string "JalDrishti/0.2.1", which Nominatim accepts (verified: HTTP 200). It
+ * string "JalDrishti/0.3.1", which Nominatim accepts (verified: HTTP 200). It
  * is reported and sanity-checked because the Nominatim usage policy asks for a
  * contact, and because a plausible-looking placeholder is an easy way to
  * ship a User-Agent that gets the whole client blocked.
@@ -65,9 +65,9 @@ const CONFIG_KEYS = [
  *
  *   no User-Agent                                   -> 403 Access denied
  *   Mozilla/5.0                                     -> 403 Access denied
- *   JalDrishti/0.2.1                                -> 200 OK
- *   JalDrishti/0.2.1 (maintainer: ops@invalid.test) -> 200 OK
- *   JalDrishti/0.2.1 (maintainer: ops@example.org) -> 403 Access denied
+ *   JalDrishti/0.3.1                                -> 200 OK
+ *   JalDrishti/0.3.1 (maintainer: ops@invalid.test) -> 200 OK
+ *   JalDrishti/0.3.1 (maintainer: ops@example.org) -> 403 Access denied
  *
  * The last line is the trap: example.org, example.com and example.net are
  * reserved documentation domains and Nominatim blocks any User-Agent
@@ -209,7 +209,7 @@ async function main() {
   } else {
     console.warn(
       "\n  note     NOMINATIM_USER_AGENT is unset. The app will fall back to the\n" +
-        "           bare string \"JalDrishti/0.2.1\", which Nominatim accepts, but\n" +
+        "           bare string \"JalDrishti/0.3.1\", which Nominatim accepts, but\n" +
         "           it carries no contact address for the operator.\n",
     );
   }
@@ -224,7 +224,7 @@ async function main() {
       "",
       "Set them in the environment or in .env before building, for example:",
       "  GROQ_API_KEY=gsk_...",
-      "  NOMINATIM_USER_AGENT='JalDrishti/0.2.1 (maintainer: you@example.org)'",
+      "  NOMINATIM_USER_AGENT='JalDrishti/0.3.1 (maintainer: you@example.org)'",
       "",
       "Or pass --allow-missing-required to ship anyway. The installer will then",
       "start with those features disabled.",

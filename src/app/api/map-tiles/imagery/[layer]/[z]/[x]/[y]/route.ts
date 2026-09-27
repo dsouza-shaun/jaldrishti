@@ -119,7 +119,7 @@ export async function GET(
       method: "GET",
       headers: {
         Accept: "image/png",
-        "User-Agent": "JalDrishti/0.2.1 (imagery tile proxy)",
+        "User-Agent": "JalDrishti/0.3.1 (imagery tile proxy)",
       },
       // A land-cover snapshot and a 2019 model: cache hard at the data layer.
       cache: "force-cache",

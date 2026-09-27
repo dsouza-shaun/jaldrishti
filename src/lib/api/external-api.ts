@@ -86,7 +86,7 @@ async function requestJson<T>(
         method: "GET",
         headers: {
           Accept: "application/json",
-          "User-Agent": "JalDrishti/0.2.1",
+          "User-Agent": "JalDrishti/0.3.1",
           ...headers,
         },
         // A customer key is part of the upstream URL contract. Do not persist a
